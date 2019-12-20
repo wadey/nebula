@@ -7,7 +7,7 @@ name: Create release and upload binaries
 
 jobs:
   build-ubuntu:
-    name: Build Cross Compiled Binaries
+    name: Build All Cross Compiled Binaries
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go 1.13
@@ -18,25 +18,68 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Build all
+      - name: Build release
         run: |
-          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" all
+          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release
+          mkdir release
+          mv build/*.tar.gz release
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
         with:
-          name: ubuntu
-          path: build
+          name: ubuntu-latest
+          path: release
+
+  build-other:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macOS-latest]
+    steps:
+      - name: Set up Go 1.13
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build
+        run: |
+          go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula ./cmd/nebula-service
+          go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula-cert ./cmd/nebula-cert
+
+      - name: Tar
+        run: |
+          mkdir release
+          tar -zcv -f release/${{ matrix.os }}.tar.gz -f $@ nebula nebula-cert
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{ matrix.os }}
+          path: release
 
   release:
     name: Create and Upload Release
-    needs: [build-ubuntu]
+    needs: [build-ubuntu, build-other]
     runs-on: ubuntu-latest
     steps:
       - name: Download ubuntu artifacts
         uses: actions/download-artifact@v1
         with:
-          name: ubuntu
+          name: ubuntu-latest
+
+      - name: Download windows artifacts
+        uses: actions/download-artifact@v1
+        with:
+          name: windows-latest
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v1
+        with:
+          name: macOS-latest
 
       - name: Create Release
         id: create_release
@@ -56,6 +99,28 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./ubuntu/build/nebula-linux-amd64.tar.gz
+          asset_path: ./ubuntu-latest/nebula-linux-amd64.tar.gz
           asset_name: nebula-linux-amd64.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload darwin-amd64
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./macOS-latest/macOS-latest.tar.gz
+          asset_name: nebula-darwin-amd64.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload windows-amd64
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./windows-latest/windows-latest.tar.gz
+          asset_name: nebula-windows-amd64.tar.gz
           asset_content_type: application/gzip
