@@ -60,7 +60,7 @@ jobs:
 
   build-linux:
     name: Build Linux
-    runs-on: linux-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Go 1.13
         uses: actions/setup-go@v1
