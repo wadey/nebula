@@ -77,7 +77,7 @@ jobs:
       - name: Tar
         run: |
           mkdir release
-          tar -zcv -f release/nebula-linux-amd64.tar.gz -f $@ nebula nebula-cert
+          tar -zcv -f release/nebula-linux-amd64.tar.gz nebula nebula-cert
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
@@ -104,7 +104,7 @@ jobs:
       - name: Tar
         run: |
           mkdir release
-          tar -zcv -f release/nebula-darwin-amd64.tar.gz -f $@ nebula nebula-cert
+          tar -zcv -f release/nebula-darwin-amd64.tar.gz nebula nebula-cert
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
