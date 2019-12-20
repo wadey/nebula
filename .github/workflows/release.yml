@@ -6,7 +6,7 @@ on:
 name: Create release and upload binaries
 
 jobs:
-  create:
+  build-ubuntu:
     name: Upload Cross Compiled Binaries
     runs-on: ubuntu-latest
     steps:
@@ -23,7 +23,9 @@ jobs:
           name: ubuntu
           path: build
 
+  release:
     name: Create and Upload Release
+    needs: [build-ubuntu]
     runs-on: ubuntu-latest
     steps:
       - name: Download ubuntu artifacts
