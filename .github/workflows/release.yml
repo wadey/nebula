@@ -30,12 +30,37 @@ jobs:
           name: ubuntu-latest
           path: release
 
-  build-other:
-    name: Build ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest, macOS-latest]
+          #  build-windows:
+          #    name: Build Windows
+          #    runs-on: windows-latest
+          #    steps:
+          #      - name: Set up Go 1.13
+          #        uses: actions/setup-go@v1
+          #        with:
+          #          go-version: 1.13
+          #
+          #      - name: Checkout code
+          #        uses: actions/checkout@v2
+          #
+          #      - name: Build
+          #        run: |
+          #          go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula ./cmd/nebula-service
+          #          go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula-cert ./cmd/nebula-cert
+          #
+          #      - name: Tar
+          #        run: |
+          #          mkdir release
+          #          tar -zcv -f release/${{ matrix.os }}.tar.gz -f $@ nebula nebula-cert
+          #
+          #      - name: Upload artifacts
+          #        uses: actions/upload-artifact@v1
+          #        with:
+          #          name: ${{ matrix.os }}
+          #          path: release
+
+  build-macos:
+    name: Build macOS
+    runs-on: macOS-latest
     steps:
       - name: Set up Go 1.13
         uses: actions/setup-go@v1
@@ -47,23 +72,22 @@ jobs:
 
       - name: Build
         run: |
-          go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula ./cmd/nebula-service
-          go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula-cert ./cmd/nebula-cert
+          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" service
 
       - name: Tar
         run: |
           mkdir release
-          tar -zcv -f release/${{ matrix.os }}.tar.gz -f $@ nebula nebula-cert
+          tar -zcv -f release/nebula-darwin-amd64.tar.gz -f $@ nebula nebula-cert
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
         with:
-          name: ${{ matrix.os }}
+          name: macOS-latest
           path: release
 
   release:
     name: Create and Upload Release
-    needs: [build-ubuntu, build-other]
+    needs: [build-ubuntu, build-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Download ubuntu artifacts
@@ -71,10 +95,10 @@ jobs:
         with:
           name: ubuntu-latest
 
-      - name: Download windows artifacts
-        uses: actions/download-artifact@v1
-        with:
-          name: windows-latest
+          #      - name: Download windows artifacts
+          #        uses: actions/download-artifact@v1
+          #        with:
+          #          name: windows-latest
 
       - name: Download macOS artifacts
         uses: actions/download-artifact@v1
@@ -108,16 +132,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./macOS-latest/macOS-latest.tar.gz
+          asset_path: ./macOS-latest/nebula-darwin-amd64.tar.gz
           asset_name: nebula-darwin-amd64.tar.gz
           asset_content_type: application/gzip
 
-      - name: Upload windows-amd64
-        uses: actions/upload-release-asset@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./windows-latest/windows-latest.tar.gz
-          asset_name: nebula-windows-amd64.tar.gz
-          asset_content_type: application/gzip
+          #      - name: Upload windows-amd64
+          #        uses: actions/upload-release-asset@v1.0.1
+          #        env:
+          #          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          #        with:
+          #          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          #          asset_path: ./windows-latest/windows-latest.tar.gz
+          #          asset_name: nebula-windows-amd64.tar.gz
+          #          asset_content_type: application/gzip
