@@ -19,7 +19,9 @@ ALL = linux-amd64 \
 
 all: $(ALL:%=build/%/nebula) $(ALL:%=build/%/nebula-cert)
 
-release: $(ALL:%=build/nebula-%.tar.gz)
+release: $(ALL:%=release/nebula-%.tar.gz)
+	cd build && sha256sum */* >../release/SHASUMS256.txt
+	cd release && sha256sum *.tar.gz >>SHASUMS256.txt
 
 bin:
 	go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula ${NEBULA_CMD_PATH}
@@ -41,7 +43,8 @@ build/%/nebula-cert: .FORCE
 		GOARM=$(word 3, $(subst -, ,$*)) \
 		go build -trimpath -o $@ -ldflags "-X main.Build=$(BUILD_NUMBER)" ./cmd/nebula-cert
 
-build/nebula-%.tar.gz: build/%/nebula build/%/nebula-cert
+release/nebula-%.tar.gz: build/%/nebula build/%/nebula-cert
+	@mkdir -p release
 	tar -zcv -C build/$* -f $@ nebula nebula-cert
 
 vet:

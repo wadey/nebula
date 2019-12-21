@@ -72,12 +72,7 @@ jobs:
 
       - name: Build
         run: |
-          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}"
-
-      - name: Tar
-        run: |
-          mkdir release
-          tar -zcv -f release/nebula-linux-amd64.tar.gz nebula nebula-cert
+          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release/nebula-linux-amd64.tar.gz
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
@@ -99,12 +94,7 @@ jobs:
 
       - name: Build
         run: |
-          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" service
-
-      - name: Tar
-        run: |
-          mkdir release
-          tar -zcv -f release/nebula-darwin-amd64.tar.gz nebula nebula-cert
+          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release/nebula-darwin-amd64.tar.gz
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
@@ -132,6 +122,10 @@ jobs:
         with:
           name: darwin-latest
 
+      - name: Combine sha256sum
+        run: |
+          sort linux-latest/SHASUM256.txt darwin-latest/SHASUM256.txt >SHASUM256.txt
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -142,6 +136,16 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
+
+      - name: Upload SHASUM256.txt
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./SHASUM256.txt
+          asset_name: SHASUM256.txt
+          asset_content_type: text/plain
 
       - name: Upload linux-amd64
         uses: actions/upload-release-asset@v1.0.1
