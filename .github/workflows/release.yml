@@ -6,58 +6,6 @@ on:
 name: Create release and upload binaries
 
 jobs:
-    #  build-ubuntu:
-    #    name: Build All Cross Compiled Binaries
-    #    runs-on: ubuntu-latest
-    #    steps:
-    #      - name: Set up Go 1.13
-    #        uses: actions/setup-go@v1
-    #        with:
-    #          go-version: 1.13
-    #
-    #      - name: Checkout code
-    #        uses: actions/checkout@v2
-    #
-    #      - name: Build release
-    #        run: |
-    #          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release
-    #          mkdir release
-    #          mv build/*.tar.gz release
-    #
-    #      - name: Upload artifacts
-    #        uses: actions/upload-artifact@v1
-    #        with:
-    #          name: ubuntu-latest
-    #          path: release
-    #
-    #          #  build-windows:
-    #          #    name: Build Windows
-    #          #    runs-on: windows-latest
-    #          #    steps:
-    #          #      - name: Set up Go 1.13
-    #          #        uses: actions/setup-go@v1
-    #          #        with:
-    #          #          go-version: 1.13
-    #          #
-    #          #      - name: Checkout code
-    #          #        uses: actions/checkout@v2
-    #          #
-    #          #      - name: Build
-    #          #        run: |
-    #          #          go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula ./cmd/nebula-service
-    #          #          go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula-cert ./cmd/nebula-cert
-    #          #
-    #          #      - name: Tar
-    #          #        run: |
-    #          #          mkdir release
-    #          #          tar -zcv -f release/${{ matrix.os }}.tar.gz -f $@ nebula nebula-cert
-    #          #
-    #          #      - name: Upload artifacts
-    #          #        uses: actions/upload-artifact@v1
-    #          #        with:
-    #          #          name: ${{ matrix.os }}
-    #          #          path: release
-
   build-linux:
     name: Build Linux All
     runs-on: ubuntu-latest
@@ -72,7 +20,8 @@ jobs:
 
       - name: Build
         run: |
-          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release-linux
+          #make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release-linux
+          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" build/nebula-linux-amd64.tar.gz
           mkdir release
           mv build/*.tar.gz release
 
@@ -96,10 +45,9 @@ jobs:
 
       - name: Build
         run: |
-          set "BN=%GITHUB_REF%"
-          set "BN=!BN:~11!"
-          go build -trimpath -ldflags "-X main.Build=!BN!" -o build\nebula.exe ./cmd/nebula-service
-          go build -trimpath -ldflags "-X main.Build=!BN!" -o build\nebula-cert.exe ./cmd/nebula-cert
+          echo $Env:GITHUB_REF.Substring(11)
+          go build -trimpath -ldflags "-X main.Build=$($Env:GITHUB_REF.Substring(11))" -o build\nebula.exe ./cmd/nebula-service
+          go build -trimpath -ldflags "-X main.Build=$($Env:GITHUB_REF.Substring(11))" -o build\nebula-cert.exe ./cmd/nebula-cert
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
