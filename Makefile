@@ -19,7 +19,9 @@ ALL = linux-amd64 \
 
 all: $(ALL:%=build/%/nebula) $(ALL:%=build/%/nebula-cert)
 
-release: $(ALL:%=release/nebula-%.tar.gz)
+release: $(ALL:%=release/nebula-%.tar.gz) release/SHASUM256.txt
+
+release/SHASUM256.txt: .FORCE
 	cd build && sha256sum */* >../release/SHASUMS256.txt
 	cd release && sha256sum *.tar.gz >>SHASUMS256.txt
 

@@ -72,7 +72,7 @@ jobs:
 
       - name: Build
         run: |
-          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release/nebula-linux-amd64.tar.gz
+          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release/nebula-linux-amd64.tar.gz release/SHASUM256.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
@@ -94,7 +94,7 @@ jobs:
 
       - name: Build
         run: |
-          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release/nebula-darwin-amd64.tar.gz
+          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release/nebula-darwin-amd64.tar.gz release/SHASUM256.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
