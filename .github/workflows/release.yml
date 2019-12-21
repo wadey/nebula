@@ -82,6 +82,31 @@ jobs:
           name: linux-latest
           path: release
 
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - name: Set up Go 1.13
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build
+        run: |
+          set "BN=%GITHUB_REF%"
+          set "BN=!BN:~11!"
+          go build -trimpath -ldflags "-X main.Build=!BN!" -o build\nebula.exe ./cmd/nebula-service
+          go build -trimpath -ldflags "-X main.Build=!BN!" -o build\nebula-cert.exe ./cmd/nebula-cert
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: windows-latest
+          path: build
+
   build-darwin:
     name: Build Darwin
     runs-on: macOS-latest
@@ -108,7 +133,7 @@ jobs:
 
   release:
     name: Create and Upload Release
-    needs: [build-linux, build-darwin]
+    needs: [build-linux, build-darwin, build-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download ubuntu artifacts
@@ -126,9 +151,19 @@ jobs:
         with:
           name: darwin-latest
 
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v1
+        with:
+          name: windows-latest
+
+      - name: Tar Windows
+        run: |
+          cd windows-latest
+          tar -zcv -f nebula-windows-amd64.tar.gz nebula.exe nebula-cert.exe
+
       - name: Create sha256sum
         run: |
-          for dir in linux-latest darwin-latest
+          for dir in linux-latest darwin-latest windows-latest
           do
             (
               cd $dir
@@ -181,12 +216,12 @@ jobs:
           asset_name: nebula-darwin-amd64.tar.gz
           asset_content_type: application/gzip
 
-          #      - name: Upload windows-amd64
-          #        uses: actions/upload-release-asset@v1.0.1
-          #        env:
-          #          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          #        with:
-          #          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          #          asset_path: ./windows-latest/windows-latest.tar.gz
-          #          asset_name: nebula-windows-amd64.tar.gz
-          #          asset_content_type: application/gzip
+      - name: Upload windows-amd64
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./windows-latest/nebula-windows-amd64.tar.gz
+          asset_name: nebula-windows-amd64.tar.gz
+          asset_content_type: application/gzip
