@@ -73,6 +73,8 @@ jobs:
       - name: Build
         run: |
           make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" build/nebula-linux-amd64.tar.gz
+          mkdir release
+          mv build/*.tar.gz release
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
@@ -95,6 +97,8 @@ jobs:
       - name: Build
         run: |
           make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" build/nebula-darwin-amd64.tar.gz
+          mkdir release
+          mv build/*.tar.gz release
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
