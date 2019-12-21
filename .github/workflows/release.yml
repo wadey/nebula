@@ -72,7 +72,7 @@ jobs:
 
       - name: Build
         run: |
-          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release/nebula-linux-amd64.tar.gz release/SHASUM256.txt
+          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" build/nebula-linux-amd64.tar.gz
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
@@ -94,7 +94,7 @@ jobs:
 
       - name: Build
         run: |
-          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" release/nebula-darwin-amd64.tar.gz release/SHASUM256.txt
+          make BUILD_NUMBER="${GITHUB_REF#refs/tags/v}" build/nebula-darwin-amd64.tar.gz
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
@@ -122,9 +122,16 @@ jobs:
         with:
           name: darwin-latest
 
-      - name: Combine sha256sum
+      - name: Create sha256sum
         run: |
-          sort linux-latest/SHASUM256.txt darwin-latest/SHASUM256.txt >SHASUM256.txt
+          for dir in linux-latest darwin-latest
+          do
+            for v in *.tar.gz
+            do
+              sha256sum $v
+              tar zxf $v --to-command='sh -c "sha256sum | sed s=-$='$v'/$TAR_FILENAME="'
+            done
+          done | sort >SHASUM256.txt
 
       - name: Create Release
         id: create_release
