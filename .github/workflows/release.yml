@@ -128,6 +128,7 @@ jobs:
 
       - name: Create sha256sum
         run: |
+          mkdir shasum
           for dir in linux-latest darwin-latest
           do
             for v in *.tar.gz
@@ -135,7 +136,13 @@ jobs:
               sha256sum $v
               tar zxf $v --to-command='sh -c "sha256sum | sed s=-$='$v'/$TAR_FILENAME="'
             done
-          done | sort >SHASUM256.txt
+          done | sort >shasum/SHASUM256.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: shasum
+          path: shasum
 
       - name: Create Release
         id: create_release
@@ -154,7 +161,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./SHASUM256.txt
+          asset_path: ./shasum/SHASUM256.txt
           asset_name: SHASUM256.txt
           asset_content_type: text/plain
 
