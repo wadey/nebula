@@ -16,7 +16,7 @@ jobs:
       run: Invoke-WebRequest -Uri https://build.openvpn.net/downloads/releases/latest/tap-windows-latest-stable.exe -OutFile tap-windows-latest-stable.exe
 
     - name: Install TAP driver
-      run: tap-windows-latest-stable.exe
+      run: .\tap-windows-latest-stable.exe
 
     - name: Set up Go 1.13
       uses: actions/setup-go@v1
