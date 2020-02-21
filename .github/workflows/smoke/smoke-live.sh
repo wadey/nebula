@@ -30,7 +30,7 @@ nebula_timeout() {
     sudo ./nebula -config host.yml 2>&1 &
     NPID="$!"
     sleep 5
-    kill "$NPID"
+    sudo kill "$NPID"
 }
 
 (nebula_timeout | redact) &
