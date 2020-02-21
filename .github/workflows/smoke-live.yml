@@ -16,7 +16,7 @@ jobs:
       run: |
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri https://build.openvpn.net/downloads/releases/latest/tap-windows-latest-stable.exe -OutFile tap-windows-latest-stable.exe
-       .\tap-windows-latest-stable.exe /S /SELECT_UTILITIES=1
+        .\tap-windows-latest-stable.exe /S /SELECT_UTILITIES=1
 
     - name: Set up Go 1.13
       uses: actions/setup-go@v1
