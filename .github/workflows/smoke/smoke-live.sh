@@ -35,8 +35,14 @@ nebula_timeout() {
 
 (nebula_timeout | redact) &
 
-sleep 1
+sleep 5
 
-ping -c 1 -W 10 192.168.0.1
+if [ "$(uname)" = "Darwin" ] || [ "$(uname)" = "Linux" ]
+then
+    ping -c 1 -W 5 192.168.0.1
+else
+    # Windows
+    ping -n 1 -w 5000 192.168.0.1
+fi
 
 wait
