@@ -12,11 +12,11 @@ jobs:
     runs-on: windows-latest
     steps:
 
-    - name: Download TAP driver
-      run: Invoke-WebRequest -Uri https://build.openvpn.net/downloads/releases/latest/tap-windows-latest-stable.exe -OutFile tap-windows-latest-stable.exe
-
-    - name: Install TAP driver
-      run: .\tap-windows-latest-stable.exe
+    - name: Download and install TAP driver
+      run: |
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri https://build.openvpn.net/downloads/releases/latest/tap-windows-latest-stable.exe -OutFile tap-windows-latest-stable.exe
+       .\tap-windows-latest-stable.exe /S /SELECT_UTILITIES=1
 
     - name: Set up Go 1.13
       uses: actions/setup-go@v1
