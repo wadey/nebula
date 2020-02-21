@@ -48,4 +48,7 @@ else
     ping -n 1 -w 5000 192.168.0.1
 fi
 
+echo
+echo
+
 wait
