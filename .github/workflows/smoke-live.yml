@@ -26,7 +26,7 @@ jobs:
 
     - name: run smoke-live
       working-directory: ./.github/workflows/smoke
-      run: ./smoke-live.sh
+      run: sudo -E ./smoke-live.sh
       shell: bash
       env:
         SMOKE_HOST: ${{ secrets.SMOKE_HOST }}

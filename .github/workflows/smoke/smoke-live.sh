@@ -27,10 +27,10 @@ echo "$SMOKE_PROV_KEY" >prov.key
 ./nebula-cert sign -ca-crt prov.crt -ca-key prov.key -name "host" -ip "$VPNIP/16"
 
 nebula_timeout() {
-    sudo ./nebula -config host.yml 2>&1 &
+    ./nebula -config host.yml 2>&1 &
     NPID="$!"
     sleep 5
-    sudo kill "$NPID"
+    kill "$NPID"
 }
 
 (nebula_timeout | redact) &
