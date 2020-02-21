@@ -29,10 +29,14 @@ echo "$SMOKE_PROV_KEY" >prov.key
 nebula_timeout() {
     ./nebula -config host.yml 2>&1 &
     NPID="$!"
-    sleep 5
+    sleep 10
     kill "$NPID"
 }
 
 (nebula_timeout | redact) &
+
+sleep 1
+
+ping -c 1 -w 10 192.168.0.1
 
 wait
