@@ -7,10 +7,16 @@ on:
   pull_request:
 jobs:
 
-  smoke-live:
-    name: Run live smoke test
-    runs-on: macOS-latest
+  smoke-live-windows:
+    name: Run live smoke test windows
+    runs-on: windows-latest
     steps:
+
+    - name: Download TAP driver
+      run: Invoke-WebRequest -Uri https://build.openvpn.net/downloads/releases/latest/tap-windows-latest-stable.exe -OutFile tap-windows-latest-stable.exe
+
+    - name: Install TAP driver
+      run: tap-windows-latest-stable.exe
 
     - name: Set up Go 1.13
       uses: actions/setup-go@v1
@@ -21,18 +27,49 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
 
-    - name: build
-      run: make
+    - name: Build nebula
+      run: go build ./cmd/nebula
 
-    - name: run smoke-live
-      working-directory: ./.github/workflows/smoke
-      run: sudo -E ./smoke-live.sh
-      shell: bash
-      env:
-        SMOKE_HOST: ${{ secrets.SMOKE_HOST }}
-        SMOKE_PORT: ${{ secrets.SMOKE_PORT }}
-        SMOKE_CA_CRT: ${{ secrets.SMOKE_CA_CRT }}
-        SMOKE_PROV_CRT: ${{ secrets.SMOKE_PROV_CRT }}
-        SMOKE_PROV_KEY: ${{ secrets.SMOKE_PROV_KEY }}
+    - name: Build nebula-cert
+      run: go build ./cmd/nebula-cert
 
-    timeout-minutes: 10
+     - name: run smoke-live
+       working-directory: ./.github/workflows/smoke
+       run: ./smoke-live.sh
+       shell: bash
+       env:
+         SMOKE_HOST: ${{ secrets.SMOKE_HOST }}
+         SMOKE_PORT: ${{ secrets.SMOKE_PORT }}
+         SMOKE_CA_CRT: ${{ secrets.SMOKE_CA_CRT }}
+         SMOKE_PROV_CRT: ${{ secrets.SMOKE_PROV_CRT }}
+         SMOKE_PROV_KEY: ${{ secrets.SMOKE_PROV_KEY }}
+
+  #  smoke-live-unix:
+  #    name: Run live smoke test
+  #    runs-on: macOS-latest
+  #    steps:
+  #
+  #    - name: Set up Go 1.13
+  #      uses: actions/setup-go@v1
+  #      with:
+  #        go-version: 1.13
+  #      id: go
+  #
+  #    - name: Check out code into the Go module directory
+  #      uses: actions/checkout@v1
+  #
+  #    - name: build
+  #      run: make
+  #
+  #    - name: run smoke-live
+  #      working-directory: ./.github/workflows/smoke
+  #      run: sudo -E ./smoke-live.sh
+  #      shell: bash
+  #      env:
+  #        SMOKE_HOST: ${{ secrets.SMOKE_HOST }}
+  #        SMOKE_PORT: ${{ secrets.SMOKE_PORT }}
+  #        SMOKE_CA_CRT: ${{ secrets.SMOKE_CA_CRT }}
+  #        SMOKE_PROV_CRT: ${{ secrets.SMOKE_PROV_CRT }}
+  #        SMOKE_PROV_KEY: ${{ secrets.SMOKE_PROV_KEY }}
+  #
+  #    timeout-minutes: 10
