@@ -37,6 +37,6 @@ nebula_timeout() {
 
 sleep 1
 
-ping -c 1 -w 10 192.168.0.1
+ping -c 1 -W 10 192.168.0.1
 
 wait

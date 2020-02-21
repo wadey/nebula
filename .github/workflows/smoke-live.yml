@@ -6,7 +6,7 @@ on:
 jobs:
 
   smoke-live-windows:
-    name: Run live smoke test windows
+    name: smoke-live windows-latest
     runs-on: windows-latest
     steps:
 
@@ -45,7 +45,7 @@ jobs:
     timeout-minutes: 10
 
   smoke-live-unix:
-    name: Run live smoke test on ${{ matrix.os }}
+    name: smoke-live ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
