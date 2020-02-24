@@ -116,6 +116,14 @@ logging:
   level: info
   # json or text formats currently available. Default is text
   format: text
+  # timestamp format is specified in Go time format, see:
+  #     https://golang.org/pkg/time/#pkg-constants
+  # default when `format: json`: "2006-01-02T15:04:05Z07:00" (RFC3339)
+  # default when `format: text`:
+  #     when TTY attached: seconds since beginning of execution
+  #     otherwise: "2006-01-02T15:04:05Z07:00" (RFC3339)
+  # As an example, to log as RFC3339 with millisecond precision, set to:
+  #timestamp_format: "2006-01-02T15:04:05.000Z07:00"
 
 #stats:
   #type: graphite
@@ -130,6 +138,15 @@ logging:
   #namespace: prometheusns
   #subsystem: nebula
   #interval: 10s
+
+# Handshake Manger Settings
+#handshakes:
+  # Total time to try a handshake = sequence of `try_interval * retries`
+  # With 100ms interval and 20 retries it is 23.5 seconds
+  #try_interval: 100ms
+  #retries: 20
+  # wait_rotation is the number of handshake attempts to do before starting to try non-local IP addresses
+  #wait_rotation: 5
 
 # Nebula security group configuration
 firewall:
