@@ -44,12 +44,6 @@ listen:
   host: 0.0.0.0
   port: ${LISTEN_PORT:-4242}
 
-tun:
-  dev: ${TUN_DEV:-nebula1}
-  unsafe_routes:
-    - route: 192.0.2.0/24
-      via: 192.168.0.1
-
 firewall:
   outbound:
     - port: any
@@ -60,4 +54,16 @@ firewall:
     - port: any
       proto: any
       host: any
+
+tun:
+  dev: ${TUN_DEV:-nebula1}
 EOF
+
+if [ "$UNSAFE_ROUTE" ]
+then
+  cat <<EOF
+  unsafe_routes:
+    - route: $UNSAFE_ROUTE
+      via: $UNSAFE_VIA
+EOF
+fi
