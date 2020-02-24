@@ -1,13 +1,14 @@
-name: smoke
+name: smoke-docker
 on:
   push:
     branches:
       - master
+      - smoke-test
   pull_request:
 jobs:
 
-  smoke:
-    name: Run 3 node smoke test
+  smoke-docker:
+    name: "Smoke Test Docker"
     runs-on: ubuntu-latest
     steps:
 
@@ -25,10 +26,10 @@ jobs:
 
     - name: setup docker image
       working-directory: ./.github/workflows/smoke
-      run: ./build.sh
+      run: ./smoke-docker-build.sh
 
     - name: run smoke
       working-directory: ./.github/workflows/smoke
-      run: ./smoke.sh
+      run: ./smoke-docker.sh
 
     timeout-minutes: 10

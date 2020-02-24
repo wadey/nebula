@@ -1,12 +1,12 @@
-name: smoke-live
+name: smoke-internet
 on:
   push:
     branches:
-      - smoke-live
+      - smoke-test
 jobs:
 
-  smoke-live-windows:
-    name: smoke-live windows-latest
+  smoke-internet-windows:
+    name: "Smoke Test Internet: windows-latest"
     runs-on: windows-latest
     steps:
 
@@ -31,9 +31,9 @@ jobs:
     - name: Build nebula-cert
       run: go build ./cmd/nebula-cert
 
-    - name: run smoke-live
+    - name: run smoke-internet
       working-directory: ./.github/workflows/smoke
-      run: ./smoke-live.sh
+      run: ./smoke-internet.sh
       shell: bash
       env:
         SMOKE_HOST: ${{ secrets.SMOKE_HOST }}
@@ -44,8 +44,8 @@ jobs:
 
     timeout-minutes: 10
 
-  smoke-live-unix:
-    name: smoke-live ${{ matrix.os }}
+  smoke-internet-unix:
+    name: "Smoke Test Internet: ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -64,9 +64,9 @@ jobs:
     - name: build
       run: make
 
-    - name: run smoke-live
+    - name: run smoke-internet
       working-directory: ./.github/workflows/smoke
-      run: sudo -E ./smoke-live.sh
+      run: sudo -E ./smoke-internet.sh
       shell: bash
       env:
         SMOKE_HOST: ${{ secrets.SMOKE_HOST }}
