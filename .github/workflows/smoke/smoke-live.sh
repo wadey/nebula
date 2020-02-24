@@ -40,12 +40,15 @@ sleep 5
 if [ "$(uname)" = "Linux" ]
 then
     ping -c 1 -w 5 192.168.0.1
+    ping -c 1 -w 5 192.0.2.1
 elif [ "$(uname)" = "Darwin" ]
 then
     ping -c 1 -t 5 192.168.0.1
+    ping -c 1 -t 5 192.0.2.1
 else
     # Windows
     ping -n 1 -w 5000 192.168.0.1
+    ping -n 1 -w 5000 192.0.2.1
 fi
 
 echo

@@ -46,6 +46,9 @@ listen:
 
 tun:
   dev: ${TUN_DEV:-nebula1}
+  unsafe_routes:
+    - route: 192.0.2.0/24
+      via: 192.168.0.1
 
 firewall:
   outbound:
