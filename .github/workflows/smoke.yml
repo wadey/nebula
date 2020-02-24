@@ -2,7 +2,7 @@ name: smoke
 on:
   push:
     branches:
-      - smoke-live
+      - master
   pull_request:
 jobs:
 
