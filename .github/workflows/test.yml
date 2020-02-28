@@ -3,7 +3,19 @@ on:
   push:
     branches:
       - master
+    paths:
+      - '**/Makefile'
+      - '**/*.go'
+      - '**/*.proto'
+      - 'go.mod'
+      - 'go.sum'
   pull_request:
+    paths:
+      - '**/Makefile'
+      - '**/*.go'
+      - '**/*.proto'
+      - 'go.mod'
+      - 'go.sum'
 jobs:
 
   test-linux:

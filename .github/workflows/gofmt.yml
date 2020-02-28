@@ -3,7 +3,11 @@ on:
   push:
     branches:
       - master
+    paths:
+      - '**/*.go'
   pull_request:
+    paths:
+      - '**/*.go'
 jobs:
 
   gofmt:
