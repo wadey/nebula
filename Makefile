@@ -19,6 +19,10 @@ ALL = $(ALL_LINUX) \
 	darwin-amd64 \
 	windows-amd64
 
+bin:
+	go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula ${NEBULA_CMD_PATH}
+	go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula-cert ./cmd/nebula-cert
+
 all: $(ALL:%=build/%/nebula) $(ALL:%=build/%/nebula-cert)
 
 release: $(ALL:%=build/nebula-%.tar.gz)
@@ -30,10 +34,6 @@ bin-windows: build/windows-amd64/nebula.exe build/windows-amd64/nebula-cert.exe
 
 bin-darwin: build/darwin-amd64/nebula build/darwin-amd64/nebula-cert
 	mv $? .
-
-bin:
-	go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula ${NEBULA_CMD_PATH}
-	go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula-cert ./cmd/nebula-cert
 
 install:
 	go install -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" ${NEBULA_CMD_PATH}
@@ -103,4 +103,3 @@ endif
 
 .FORCE:
 .PHONY: test test-cov-html bench bench-cpu bench-cpu-long bin proto release service
-.DEFAULT_GOAL := bin
