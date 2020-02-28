@@ -4,6 +4,7 @@ on:
     branches:
       - master
     paths:
+      - '.github/workflows/smoke.yml'
       - '.github/workflows/smoke/**'
       - '**/Makefile'
       - '**/*.go'
@@ -12,6 +13,7 @@ on:
       - 'go.sum'
   pull_request:
     paths:
+      - '.github/workflows/smoke.yml'
       - '.github/workflows/smoke/**'
       - '**/Makefile'
       - '**/*.go'

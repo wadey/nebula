@@ -4,6 +4,7 @@ on:
     branches:
       - master
     paths:
+      - '.github/workflows/test.yml'
       - '**/Makefile'
       - '**/*.go'
       - '**/*.proto'
@@ -11,6 +12,7 @@ on:
       - 'go.sum'
   pull_request:
     paths:
+      - '.github/workflows/test.yml'
       - '**/Makefile'
       - '**/*.go'
       - '**/*.proto'
