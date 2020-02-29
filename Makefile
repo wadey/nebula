@@ -34,6 +34,7 @@ bin-darwin: build/darwin-amd64/nebula build/darwin-amd64/nebula-cert
 bin:
 	go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula ${NEBULA_CMD_PATH}
 	go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula-cert ./cmd/nebula-cert
+	echo test
 
 install:
 	go install -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" ${NEBULA_CMD_PATH}
