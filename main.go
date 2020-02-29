@@ -29,7 +29,7 @@ func Main(configPath string, configTest bool, buildVersion string) {
 	config := NewConfig()
 	err := config.Load(configPath)
 	if err != nil {
-		l.WithError(err).Error("Failed to load config")
+		l.WithError(err).Error("Failed to load config test")
 		os.Exit(1)
 	}
 
