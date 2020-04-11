@@ -20,6 +20,8 @@ ALL = $(ALL_LINUX) \
 	freebsd-amd64 \
 	windows-amd64
 
+DOCKER_BIN = build/linux-amd64/nebula build/linux-amd64/nebula-cert
+
 all: $(ALL:%=build/%/nebula) $(ALL:%=build/%/nebula-cert)
 
 release: $(ALL:%=build/nebula-%.tar.gz)
@@ -109,15 +111,17 @@ ifeq ($(words $(MAKECMDGOALS)),1)
 	$(MAKE) service ${.DEFAULT_GOAL} --no-print-directory
 endif
 
-bin-docker: build/linux-amd64/nebula build/linux-amd64/nebula-cert
-
-smoke-docker: bin-docker
+smoke-docker: $(DOCKER_BIN)
 	cd .github/workflows/smoke/ && ./build.sh
 	cd .github/workflows/smoke/ && ./smoke.sh
 
 smoke-docker-race: BUILD_ARGS = -race
 smoke-docker-race: smoke-docker
 
+smoke-vagrant/%: $(DOCKER_BIN) build/%/nebula
+	cd .github/workflows/smoke/ && ./build.sh $*
+	cd .github/workflows/smoke/ && ./smoke-vagrant.sh $*
+
 .FORCE:
-.PHONY: test test-cov-html bench bench-cpu bench-cpu-long bin proto release service smoke-docker smoke-docker-race
+.PHONY: test test-cov-html bench bench-cpu bench-cpu-long bin proto release service smoke-docker smoke-docker-race smoke-vagrant/%
 .DEFAULT_GOAL := bin
