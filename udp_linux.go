@@ -69,8 +69,10 @@ func NewListener(ip string, port int, multi bool) (*udpConn, error) {
 	var lip [4]byte
 	copy(lip[:], net.ParseIP(ip).To4())
 
-	if err = unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_REUSEPORT, 1); err != nil {
-		return nil, fmt.Errorf("unable to set SO_REUSEPORT: %s", err)
+	if multi {
+		if err = unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_REUSEPORT, 1); err != nil {
+			return nil, fmt.Errorf("unable to set SO_REUSEPORT: %s", err)
+		}
 	}
 
 	if err = unix.Bind(fd, &unix.SockaddrInet4{Addr: lip, Port: port}); err != nil {
