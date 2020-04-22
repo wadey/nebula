@@ -8,8 +8,8 @@ mkdir ./build
 (
     cd build
 
-    cp ../../../../nebula .
-    cp ../../../../nebula-cert .
+    cp ../../../../build/linux-amd64/nebula .
+    cp ../../../../build/linux-amd64/nebula-cert .
 
     HOST="lighthouse1" \
         AM_LIGHTHOUSE=true \
@@ -36,4 +36,4 @@ mkdir ./build
     ./nebula-cert sign -name "host4" -groups "host,host4" -ip "192.168.100.4/24"
 )
 
-docker build -t nebula:smoke .
+sudo docker build -t nebula:smoke .

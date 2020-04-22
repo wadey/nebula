@@ -28,6 +28,8 @@ release-linux: $(ALL_LINUX:%=build/nebula-%.tar.gz)
 
 release-freebsd: build/nebula-freebsd-amd64.tar.gz
 
+BUILD_ARGS = -trimpath
+
 bin-windows: build/windows-amd64/nebula.exe build/windows-amd64/nebula-cert.exe
 	mv $? .
 
@@ -38,24 +40,24 @@ bin-freebsd: build/freebsd-amd64/nebula build/freebsd-amd64/nebula-cert
 	mv $? .
 
 bin:
-	go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula ${NEBULA_CMD_PATH}
-	go build -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula-cert ./cmd/nebula-cert
+	go build $(BUILD_ARGS) -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula ${NEBULA_CMD_PATH}
+	go build $(BUILD_ARGS) -ldflags "-X main.Build=$(BUILD_NUMBER)" -o ./nebula-cert ./cmd/nebula-cert
 
 install:
-	go install -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" ${NEBULA_CMD_PATH}
-	go install -trimpath -ldflags "-X main.Build=$(BUILD_NUMBER)" ./cmd/nebula-cert
+	go install $(BUILD_ARGS) -ldflags "-X main.Build=$(BUILD_NUMBER)" ${NEBULA_CMD_PATH}
+	go install $(BUILD_ARGS) -ldflags "-X main.Build=$(BUILD_NUMBER)" ./cmd/nebula-cert
 
 build/%/nebula: .FORCE
 	GOOS=$(firstword $(subst -, , $*)) \
 		GOARCH=$(word 2, $(subst -, ,$*)) \
 		GOARM=$(word 3, $(subst -, ,$*)) \
-		go build -trimpath -o $@ -ldflags "-X main.Build=$(BUILD_NUMBER)" ${NEBULA_CMD_PATH}
+		go build $(BUILD_ARGS) -o $@ -ldflags "-X main.Build=$(BUILD_NUMBER)" ${NEBULA_CMD_PATH}
 
 build/%/nebula-cert: .FORCE
 	GOOS=$(firstword $(subst -, , $*)) \
 		GOARCH=$(word 2, $(subst -, ,$*)) \
 		GOARM=$(word 3, $(subst -, ,$*)) \
-		go build -trimpath -o $@ -ldflags "-X main.Build=$(BUILD_NUMBER)" ./cmd/nebula-cert
+		go build $(BUILD_ARGS) -o $@ -ldflags "-X main.Build=$(BUILD_NUMBER)" ./cmd/nebula-cert
 
 build/%/nebula.exe: build/%/nebula
 	mv $< $@
@@ -107,6 +109,15 @@ ifeq ($(words $(MAKECMDGOALS)),1)
 	$(MAKE) service ${.DEFAULT_GOAL} --no-print-directory
 endif
 
+bin-docker: build/linux-amd64/nebula build/linux-amd64/nebula-cert
+
+smoke-docker: bin-docker
+	cd .github/workflows/smoke/ && ./build.sh
+	cd .github/workflows/smoke/ && ./smoke.sh
+
+smoke-docker-race: BUILD_ARGS = -race
+smoke-docker-race: smoke-docker
+
 .FORCE:
-.PHONY: test test-cov-html bench bench-cpu bench-cpu-long bin proto release service
+.PHONY: test test-cov-html bench bench-cpu bench-cpu-long bin proto release service smoke-docker smoke-docker-race
 .DEFAULT_GOAL := bin
