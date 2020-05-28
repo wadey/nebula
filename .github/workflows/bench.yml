@@ -1,0 +1,61 @@
+name: Compare benchmarks to master
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    paths:
+      - '.github/workflows/test.yml'
+      - '**Makefile'
+      - '**.go'
+      - '**.proto'
+      - 'go.mod'
+      - 'go.sum'
+jobs:
+
+  bench:
+    name: Compare benchmarks to master
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.14
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.14
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Get benchcmp
+        run: go build golang.org/x/tools/cmd/benchcmp
+
+      - name: Bench master
+        run: |
+          git checkout master
+          go test -run=NONE -bench=. ./...
+          go test -run=NONE -bench=. ./... | tee old.txt
+
+      - name: Bench new
+        run: |
+          git checkout "$GITHUB_SHA"
+          go test -run=NONE -bench=. ./...
+          go test -run=NONE -bench=. ./... | tee new.txt
+
+      - name: Compare
+        run: |
+          ./benchcmp old.txt new.txt
+
+      - name: Fail if a benchmark is slower by +100% or more
+        run: |
+          if ./benchcmp old.txt new.txt | grep -E '\+[0-9]{3}'
+          then
+            echo "::error::Benchmark is more than 100% worse"
+            exit 1
+          fi
