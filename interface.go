@@ -20,9 +20,16 @@ type Inside interface {
 	WriteRaw([]byte) error
 }
 
+type Outside interface {
+	WriteTo(b []byte, addr *udpAddr) error
+	LocalAddr() (*udpAddr, error)
+	ListenOut(f *Interface)
+	reloadConfig(c *Config)
+}
+
 type InterfaceConfig struct {
 	HostMap                 *HostMap
-	Outside                 *udpConn
+	Outside                 Outside
 	Inside                  Inside
 	certState               *CertState
 	Cipher                  string
@@ -40,7 +47,7 @@ type InterfaceConfig struct {
 
 type Interface struct {
 	hostMap            *HostMap
-	outside            *udpConn
+	outside            Outside
 	inside             Inside
 	certState          *CertState
 	cipher             string
@@ -133,7 +140,7 @@ func (f *Interface) listenOut(i int) {
 		l.WithError(err).Error("failed to discover udp listening address")
 	}
 
-	var li *udpConn
+	var li Outside
 	if i > 0 {
 		//TODO: handle error
 		li, err = NewListener(udp2ip(addr).String(), int(addr.Port), i > 0)

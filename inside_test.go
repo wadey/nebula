@@ -1,10 +1,7 @@
-// +build linux
-
 package nebula
 
 import (
 	"encoding/hex"
-	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -13,7 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/slackhq/nebula/cert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 )
 
 func BenchmarkInsideHotPath(b *testing.B) {
@@ -53,22 +49,12 @@ func BenchmarkInsideHotPath(b *testing.B) {
 	fw := NewFirewall(time.Second, time.Minute, time.Hour, &c)
 	require.NoError(b, fw.AddRule(false, fwProtoAny, 0, 0, []string{"any"}, "", nil, "", ""))
 
-	// We have to actually create a udp socket, since udpServer is not an interface
-	udpServer, err := NewListener("127.0.0.1", 0, false)
-	require.NoError(b, err)
-
-	// We aren't going to read, so set the smallest recv buffer size so everything gets dropped
-	require.NoError(b, unix.SetsockoptInt(udpServer.sysFd, unix.SOL_SOCKET, unix.SO_RCVBUF, 0))
-
-	uPort, err := udpServer.LocalAddr()
-	require.NoError(b, err)
-
 	hostMap := NewHostMap("main", myIpNet, preferredRanges)
 	// TODO should we send to port 9 (discard protocol) instead of ourselves?
 	// Sending to :9 seems to slow down the test since another service on the
 	// box has to recv the messages. If we just send to ourselves, the packets
 	// just fill the buffer and get thrown away.
-	hostMap.AddRemote(ip2int(net.ParseIP("192.168.0.1")), NewUDPAddrFromString(fmt.Sprintf("127.0.0.1:%d", uPort.Port)))
+	hostMap.AddRemote(ip2int(net.ParseIP("192.168.0.1")), NewUDPAddrFromString("127.0.0.1:4242"))
 	info, _ := hostMap.QueryVpnIP(ip2int(net.ParseIP("192.168.0.1")))
 	var mc uint64
 	info.ConnectionState = &ConnectionState{
@@ -81,7 +67,7 @@ func BenchmarkInsideHotPath(b *testing.B) {
 		hostMap:    hostMap,
 		firewall:   fw,
 		lightHouse: &LightHouse{},
-		outside:    udpServer,
+		outside:    &dropOutside{},
 	}
 	ifce.connectionManager = newConnectionManager(ifce, 300, 300)
 
@@ -112,3 +98,11 @@ func BenchmarkInsideHotPath(b *testing.B) {
 		b.SetBytes(1500)
 	})
 }
+
+// Drop all outgoing packets, for Benchmark test
+type dropOutside struct{}
+
+func (dropOutside) WriteTo(b []byte, addr *udpAddr) error { return nil }
+func (dropOutside) LocalAddr() (*udpAddr, error)          { return nil, nil }
+func (dropOutside) ListenOut(f *Interface)                {}
+func (dropOutside) reloadConfig(c *Config)                {}
