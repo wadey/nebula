@@ -327,7 +327,10 @@ func (c *Tun) Read(p []byte) (n int, err error) {
 }
 
 func (c *Tun) Write(p []byte) (n int, err error) {
-	return c.f.Write(p)
+	request, err := c.iour.SubmitRequest(iouring.Write(c.fd, p), nil)
+	<-request.Done()
+
+	return request.ReturnInt()
 }
 
 func (c *Tun) Close() error {
