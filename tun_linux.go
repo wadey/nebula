@@ -10,12 +10,13 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/iceber/iouring-go"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
 
 type Tun struct {
-	io.ReadWriteCloser
+	f            io.ReadWriteCloser
 	fd           int
 	Device       string
 	Cidr         *net.IPNet
@@ -24,6 +25,8 @@ type Tun struct {
 	TXQueueLen   int
 	Routes       []route
 	UnsafeRoutes []route
+
+	iour *iouring.IOURing
 }
 
 type ifReq struct {
@@ -82,14 +85,14 @@ func newTunFromFd(deviceFd int, cidr *net.IPNet, defaultMTU int, routes []route,
 	file := os.NewFile(uintptr(deviceFd), "/dev/net/tun")
 
 	ifce = &Tun{
-		ReadWriteCloser: file,
-		fd:              int(file.Fd()),
-		Device:          "tun0",
-		Cidr:            cidr,
-		DefaultMTU:      defaultMTU,
-		TXQueueLen:      txQueueLen,
-		Routes:          routes,
-		UnsafeRoutes:    unsafeRoutes,
+		f:            file,
+		fd:           int(file.Fd()),
+		Device:       "tun0",
+		Cidr:         cidr,
+		DefaultMTU:   defaultMTU,
+		TXQueueLen:   txQueueLen,
+		Routes:       routes,
+		UnsafeRoutes: unsafeRoutes,
 	}
 	return
 }
@@ -117,16 +120,23 @@ func newTun(deviceName string, cidr *net.IPNet, defaultMTU int, routes []route, 
 		}
 	}
 
+	iour, err := iouring.New(1)
+	if err != nil {
+		return nil, err
+	}
+
 	ifce = &Tun{
-		ReadWriteCloser: file,
-		fd:              int(file.Fd()),
-		Device:          name,
-		Cidr:            cidr,
-		MaxMTU:          maxMTU,
-		DefaultMTU:      defaultMTU,
-		TXQueueLen:      txQueueLen,
-		Routes:          routes,
-		UnsafeRoutes:    unsafeRoutes,
+		f:            file,
+		fd:           int(file.Fd()),
+		Device:       name,
+		Cidr:         cidr,
+		MaxMTU:       maxMTU,
+		DefaultMTU:   defaultMTU,
+		TXQueueLen:   txQueueLen,
+		Routes:       routes,
+		UnsafeRoutes: unsafeRoutes,
+
+		iour: iour,
 	}
 	return
 }
@@ -307,4 +317,20 @@ func (c Tun) advMSS(r route) int {
 		return mtu - 40
 	}
 	return 0
+}
+
+func (c *Tun) Read(p []byte) (n int, err error) {
+	request, err := c.iour.SubmitRequest(iouring.Read(c.fd, p), nil)
+	<-request.Done()
+
+	return request.ReturnInt()
+}
+
+func (c *Tun) Write(p []byte) (n int, err error) {
+	return c.f.Write(p)
+}
+
+func (c *Tun) Close() error {
+	c.iour.Close()
+	return c.f.Close()
 }
