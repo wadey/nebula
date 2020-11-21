@@ -330,7 +330,7 @@ func (c *Tun) Readv(p [][]byte) (n int, err error) {
 
 		n, err = request.ReturnInt()
 		if err != nil && err == unix.EINTR {
-			l.Infof("readv: EINTR")
+			l.Debugf("readv: EINTR")
 			continue
 		}
 		return n, err
