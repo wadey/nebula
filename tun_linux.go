@@ -320,14 +320,29 @@ func (c Tun) advMSS(r route) int {
 }
 
 func (c *Tun) Read(p []byte) (n int, err error) {
-	request, err := c.iour.SubmitRequest(iouring.Readv(c.fd, [][]byte{p}), nil)
-	<-request.Done()
+	return c.Readv([][]byte{p})
+}
 
-	return request.ReturnInt()
+func (c *Tun) Readv(p [][]byte) (n int, err error) {
+	for {
+		request, err := c.iour.SubmitRequest(iouring.Readv(c.fd, p), nil)
+		<-request.Done()
+
+		n, err = request.ReturnInt()
+		if err != nil && err == unix.EINTR {
+			l.Infof("readv: EINTR")
+			continue
+		}
+		return n, err
+	}
 }
 
 func (c *Tun) Write(p []byte) (n int, err error) {
-	request, err := c.iour.SubmitRequest(iouring.Writev(c.fd, [][]byte{p}), nil)
+	return c.Writev([][]byte{p})
+}
+
+func (c *Tun) Writev(p [][]byte) (n int, err error) {
+	request, err := c.iour.SubmitRequest(iouring.Writev(c.fd, p), nil)
 	<-request.Done()
 
 	return request.ReturnInt()
