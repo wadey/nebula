@@ -62,6 +62,10 @@ func main() {
 
 	if !*configTest {
 		c.Start()
+
+		api := nebula.NebulaAPI{Control: c}
+		go api.Run()
+
 		c.ShutdownBlock()
 	}
 

@@ -43,6 +43,7 @@ bin-freebsd: build/freebsd-amd64/nebula build/freebsd-amd64/nebula-cert
 bin:
 	go build -trimpath -ldflags "$(LDFLAGS)" -o ./nebula ${NEBULA_CMD_PATH}
 	go build -trimpath -ldflags "$(LDFLAGS)" -o ./nebula-cert ./cmd/nebula-cert
+	go build -trimpath -ldflags "$(LDFLAGS)" -o ./nebula-ctl ./cmd/nebula-ctl
 
 install:
 	go install -trimpath -ldflags "$(LDFLAGS)" ${NEBULA_CMD_PATH}
@@ -97,12 +98,18 @@ bench-cpu-long:
 	go test -bench=. -benchtime=60s -cpuprofile=cpu.pprof
 	go tool pprof go-audit.test cpu.pprof
 
-proto: nebula.pb.go cert/cert.pb.go
+proto: nebula.pb.go cert/cert.pb.go api/api.pb.go
 
 nebula.pb.go: nebula.proto .FORCE
 	go build github.com/golang/protobuf/protoc-gen-go
 	PATH="$(PWD):$(PATH)" protoc --go_out=. $<
 	rm protoc-gen-go
+
+api/api.pb.go: api/api.proto .FORCE
+	go build google.golang.org/grpc/cmd/protoc-gen-go-grpc
+	go build github.com/golang/protobuf/protoc-gen-go
+	PATH="$(PWD):$(PATH)" protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative $<
+	rm protoc-gen-go protoc-gen-go-grpc
 
 cert/cert.pb.go: cert/cert.proto .FORCE
 	$(MAKE) -C cert cert.pb.go

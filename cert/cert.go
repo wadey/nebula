@@ -424,6 +424,13 @@ func (nc *NebulaCertificate) Marshal() ([]byte, error) {
 	return proto.Marshal(&rc)
 }
 
+func (nc *NebulaCertificate) Raw() *RawNebulaCertificate {
+	return &RawNebulaCertificate{
+		Details:   nc.getRawDetails(),
+		Signature: nc.Signature,
+	}
+}
+
 // MarshalToPEM will marshal a nebula cert into a protobuf byte array and pem encode the result
 func (nc *NebulaCertificate) MarshalToPEM() ([]byte, error) {
 	b, err := nc.Marshal()
