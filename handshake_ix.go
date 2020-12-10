@@ -273,6 +273,8 @@ func ixHandshakeStage2(f *Interface, addr *udpAddr, hostinfo *HostInfo, packet [
 		return true
 	}
 
+	hostinfo.debugMsg("handshake packet received")
+
 	if bytes.Equal(hostinfo.HandshakePacket[2], packet[HeaderLen:]) {
 		l.WithField("vpnIp", IntIp(hostinfo.hostId)).WithField("udpAddr", addr).
 			WithField("handshake", m{"stage": 2, "style": "ix_psk0"}).WithField("header", h).

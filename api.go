@@ -3,8 +3,10 @@ package nebula
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/slackhq/nebula/api"
 	"google.golang.org/grpc"
 )
@@ -55,6 +57,89 @@ func (n *NebulaAPI) ListHostmap(p *api.ListHostmapParams, s api.NebulaControl_Li
 		}
 	}
 	return nil
+}
+
+func (n *NebulaAPI) Ping(p *api.PingParams, s api.NebulaControl_PingServer) error {
+	ifce := n.Control.f
+
+	parsedIp := net.ParseIP(p.VpnIP)
+	if parsedIp == nil {
+		return fmt.Errorf("The provided vpn ip could not be parsed: %s", p.VpnIP)
+	}
+
+	vpnIp := ip2int(parsedIp)
+	if vpnIp == 0 {
+		return fmt.Errorf("The provided vpn ip could not be parsed: %s", p.VpnIP)
+	}
+
+	c := make(chan *api.DebugResult, 16)
+
+	hostInfo, _ := ifce.hostMap.QueryVpnIP(uint32(vpnIp))
+	if hostInfo != nil {
+		hostInfo.debug = c
+		hostInfo.debugMsg("tunnel already exists")
+	} else {
+		hostInfo, _ = ifce.handshakeManager.pendingHostMap.QueryVpnIP(uint32(vpnIp))
+		if hostInfo != nil {
+			hostInfo.debug = c
+			hostInfo.debugMsg("tunnel already handshaking")
+		} else {
+			hostInfo = ifce.getOrHandshake(vpnIp)
+			hostInfo.debug = c
+			hostInfo.debugMsg("starting new handshake")
+		}
+	}
+
+	// TODO allow to manually set the remote udpAddr
+	// var addr *udpAddr
+	// if flags.Address != "" {
+	// 	addr = NewUDPAddrFromString(flags.Address)
+	// 	if addr == nil {
+	// 		return w.WriteLine("Address could not be parsed")
+	// 	}
+	// }
+
+	// hostInfo = ifce.handshakeManager.AddVpnIP(vpnIp)
+	// if addr != nil {
+	// 	hostInfo.SetRemote(*addr)
+	// }
+
+	hi := ifce.getOrHandshake(vpnIp)
+	if hi != hostInfo {
+		return fmt.Errorf("hostInfo changed while we were starting")
+	}
+	defer func() {
+		hi.debug = nil
+	}()
+
+	done := s.Context().Done()
+
+	ifce.SendMessageToVpnIp(test, testRequest, vpnIp, []byte(""), make([]byte, 12, 12), make([]byte, mtu))
+	hi.debugMsg("test packet sent")
+
+	for {
+		select {
+		case result, ok := <-c:
+			if !ok {
+				return nil
+			}
+			if result.Timestamp == nil {
+				result.Timestamp = ptypes.TimestampNow()
+			}
+			s.Send(result)
+
+			// TODO let the client determine this
+			if result.Message == "test packet received" {
+				return nil
+			}
+		case <-done:
+			err := s.Context().Err()
+			if err == context.Canceled {
+				return nil
+			}
+			return err
+		}
+	}
 }
 
 func apiHostInfo(hostInfo *ControlHostInfo) *api.HostInfo {

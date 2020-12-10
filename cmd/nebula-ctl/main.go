@@ -38,6 +38,8 @@ func main() {
 		err = hostinfo(client, args[1:])
 	case "set-remote":
 		err = setRemote(client, args[1:])
+	case "ping":
+		err = ping(client, args[1:])
 	}
 
 	if err != nil {
@@ -105,6 +107,36 @@ func listHostmap(client api.NebulaControlClient, args []string) error {
 		}
 
 		j, err := json.Marshal(hostInfo)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(string(j))
+	}
+
+	return nil
+}
+
+func ping(client api.NebulaControlClient, args []string) error {
+	// TODO flags
+
+	r, err := client.Ping(context.Background(), &api.PingParams{
+		VpnIP: args[0],
+	})
+	if err != nil {
+		return err
+	}
+
+	for {
+		result, err := r.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		j, err := json.Marshal(result)
 		if err != nil {
 			return err
 		}

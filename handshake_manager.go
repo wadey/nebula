@@ -143,6 +143,8 @@ func (c *HandshakeManager) handleOutbound(vpnIP uint32, f EncWriter, lighthouseT
 
 		// Ensure the handshake is ready to avoid a race in timer tick and stage 0 handshake generation
 		if hostinfo.HandshakeReady && hostinfo.remote != nil {
+			hostinfo.debugMsg(fmt.Sprintf("sending handshake packet: %v: %v", IntIp(vpnIP), hostinfo.remote))
+
 			c.messageMetrics.Tx(handshake, NebulaMessageSubType(hostinfo.HandshakePacket[0][1]), 1)
 			err := c.outside.WriteTo(hostinfo.HandshakePacket[0], hostinfo.remote)
 			if err != nil {

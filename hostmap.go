@@ -8,8 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/rcrowley/go-metrics"
 	"github.com/sirupsen/logrus"
+	"github.com/slackhq/nebula/api"
 	"github.com/slackhq/nebula/cert"
 )
 
@@ -50,6 +52,8 @@ type HostInfo struct {
 	hostId            uint32
 	recvError         int
 	remoteCidr        *CIDRTree
+
+	debug chan *api.DebugResult
 
 	lastRoam       time.Time
 	lastRoamRemote *udpAddr
@@ -686,6 +690,14 @@ func (i *HostInfo) logger() *logrus.Entry {
 	}
 
 	return li
+}
+
+func (i *HostInfo) debugMsg(msg string) {
+	if c := i.debug; c != nil {
+		select {
+		case c <- &api.DebugResult{Message: msg, Timestamp: ptypes.TimestampNow()}:
+		}
+	}
 }
 
 //########################

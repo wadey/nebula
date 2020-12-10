@@ -87,6 +87,8 @@ func (f *Interface) readOutsidePackets(addr *udpAddr, out []byte, packet []byte,
 			return
 		}
 
+		hostinfo.debugMsg("test packet received")
+
 		if header.Subtype == testRequest {
 			// This testRequest might be from TryPromoteBest, so we should roam
 			// to the new IP address before responding
