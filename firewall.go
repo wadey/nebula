@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rcrowley/go-metrics"
@@ -372,9 +373,9 @@ var ErrNoMatchingRule = errors.New("no matching rule in firewall table")
 
 // Drop returns an error if the packet should be dropped, explaining why. It
 // returns nil if the packet should not be dropped.
-func (f *Firewall) Drop(packet []byte, fp FirewallPacket, incoming bool, h *HostInfo, caPool *cert.NebulaCAPool) error {
+func (f *Firewall) Drop(packet []byte, fp FirewallPacket, incoming bool, h *HostInfo, caPool *cert.NebulaCAPool, localCache map[FirewallPacket]struct{}) error {
 	// Check if we spoke to this tuple, if we did then allow this packet
-	if f.inConns(packet, fp, incoming, h, caPool) {
+	if f.inConns(packet, fp, incoming, h, caPool, localCache) {
 		return nil
 	}
 
@@ -426,7 +427,12 @@ func (f *Firewall) EmitStats() {
 	metrics.GetOrRegisterGauge("firewall.rules.version", nil).Update(int64(f.rulesVersion))
 }
 
-func (f *Firewall) inConns(packet []byte, fp FirewallPacket, incoming bool, h *HostInfo, caPool *cert.NebulaCAPool) bool {
+func (f *Firewall) inConns(packet []byte, fp FirewallPacket, incoming bool, h *HostInfo, caPool *cert.NebulaCAPool, localCache map[FirewallPacket]struct{}) bool {
+	if localCache != nil {
+		if _, ok := localCache[fp]; ok {
+			return true
+		}
+	}
 	conntrack := f.Conntrack
 	conntrack.Lock()
 
@@ -493,6 +499,10 @@ func (f *Firewall) inConns(packet []byte, fp FirewallPacket, incoming bool, h *H
 	}
 
 	conntrack.Unlock()
+
+	if localCache != nil {
+		localCache[fp] = struct{}{}
+	}
 
 	return true
 }
@@ -922,4 +932,49 @@ func (f *Firewall) checkTCPRTT(c *conn, p []byte) bool {
 	f.metricTCPRTT.Update(time.Since(c.Sent).Nanoseconds())
 	c.Seq = 0
 	return true
+}
+
+type ConntrackCache struct {
+	cacheV    uint64
+	cacheTick uint64
+
+	Cache map[FirewallPacket]struct{}
+}
+
+func NewConntrackCache(d time.Duration) *ConntrackCache {
+	if d == 0 {
+		return nil
+	}
+
+	c := &ConntrackCache{
+		Cache: map[FirewallPacket]struct{}{},
+	}
+
+	go c.tick(d)
+
+	return c
+}
+
+func (c *ConntrackCache) tick(d time.Duration) {
+	for {
+		time.Sleep(d)
+		atomic.AddUint64(&c.cacheTick, 1)
+	}
+}
+
+// Get checks if the cache ticker has moved to the next version before returning
+// the map. If it has moved, we reset the map.
+func (c *ConntrackCache) Get() map[FirewallPacket]struct{} {
+	if c == nil {
+		return nil
+	}
+	if tick := atomic.LoadUint64(&c.cacheTick); tick != c.cacheV {
+		c.cacheV = tick
+		if ll := len(c.Cache); ll > 0 {
+			l.WithField("len", ll).Info("resetting conntrack cache")
+			c.Cache = make(map[FirewallPacket]struct{}, len(c.Cache))
+		}
+	}
+
+	return c.Cache
 }
