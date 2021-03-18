@@ -338,11 +338,11 @@ func (hm *HostMap) PromoteBestQueryVpnIP(vpnIp uint32, ifce *Interface) (*HostIn
 func (hm *HostMap) queryVpnIP(vpnIp uint32, promoteIfce *Interface) (*HostInfo, error) {
 	hm.RLock()
 	if h, ok := hm.Hosts[vpnIp]; ok {
+		hm.RUnlock()
 		if promoteIfce != nil {
 			h.TryPromoteBest(hm.preferredRanges, promoteIfce)
 		}
 		//fmt.Println(h.remote)
-		hm.RUnlock()
 		return h, nil
 	} else {
 		//return &net.UDPAddr{}, nil, errors.New("Unable to find host")
@@ -472,15 +472,19 @@ func (i *HostInfo) BindConnectionState(cs *ConnectionState) {
 
 func (i *HostInfo) TryPromoteBest(preferredRanges []*net.IPNet, ifce *Interface) {
 	if i.remote == nil {
+		i.Lock()
 		i.ForcePromoteBest(preferredRanges)
+		i.Unlock()
 		return
 	}
 
 	if atomic.AddUint32(&i.promoteCounter, 1)%PromoteEvery == 0 {
+		i.Lock()
 		// return early if we are already on a preferred remote
 		rIP := i.remote.IP
 		for _, l := range preferredRanges {
 			if l.Contains(rIP) {
+				i.Unlock()
 				return
 			}
 		}
@@ -494,9 +498,12 @@ func (i *HostInfo) TryPromoteBest(preferredRanges []*net.IPNet, ifce *Interface)
 
 		best, preferred := i.getBestRemote(preferredRanges)
 		if preferred && !best.Equals(i.remote) {
+			i.Unlock()
 			// Try to send a test packet to that host, this should
 			// cause it to detect a roaming event and switch remotes
 			ifce.send(test, testRequest, i.ConnectionState, i, best, []byte(""), make([]byte, 12, 12), make([]byte, mtu))
+		} else {
+			i.Unlock()
 		}
 	}
 }

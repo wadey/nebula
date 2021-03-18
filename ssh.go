@@ -607,8 +607,9 @@ func sshChangeRemote(ifce *Interface, fs interface{}, a []string, w sshd.StringW
 	if err != nil {
 		return w.WriteLine(fmt.Sprintf("Could not find tunnel for vpn ip: %v", a[0]))
 	}
-
+	hostInfo.Lock()
 	hostInfo.SetRemote(addr)
+	hostInfo.Unlock()
 	return w.WriteLine("Changed")
 }
 

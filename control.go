@@ -110,9 +110,12 @@ func (c *Control) SetRemoteForTunnel(vpnIP uint32, addr udpAddr) *ControlHostInf
 	if err != nil {
 		return nil
 	}
+	hostInfo.Lock()
+	defer hostInfo.Unlock()
 
 	hostInfo.SetRemote(addr.Copy())
 	ch := copyHostInfo(hostInfo)
+
 	return &ch
 }
 

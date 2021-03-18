@@ -142,6 +142,14 @@ func (f *Interface) closeTunnel(hostInfo *HostInfo) {
 
 func (f *Interface) handleHostRoaming(hostinfo *HostInfo, addr *udpAddr) {
 	if hostDidRoam(hostinfo.remote, addr) {
+		hostinfo.Lock()
+		defer hostinfo.Unlock()
+
+		// Double check now that we have the lock
+		if !hostDidRoam(hostinfo.remote, addr) {
+			return
+		}
+
 		if !f.lightHouse.remoteAllowList.Allow(addr.IP) {
 			hostinfo.logger(f.l).WithField("newAddr", addr).Debug("lighthouse.remote_allow_list denied roaming")
 			return
