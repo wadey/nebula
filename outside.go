@@ -183,7 +183,8 @@ func (f *Interface) handleEncrypted(ci *ConnectionState, addr *udp.Addr, h *head
 	// If connectionstate exists and the replay protector allows, process packet
 	// Else, send recv errors for 300 seconds after a restart to allow fast reconnection.
 	if ci == nil || !ci.window.Check(f.l, h.MessageCounter) {
-		f.sendRecvError(addr, h.RemoteIndex)
+		// Don't send recvError packets
+		// f.sendRecvError(addr, h.RemoteIndex)
 		return false
 	}
 
