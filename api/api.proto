@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+option go_package = "github.com/slackhq/nebula/api";
+
+package api;
+
+import "google/protobuf/timestamp.proto";
+import "cert/cert.proto";
+
+service NebulaControl {
+  rpc GetVersion(GetVersionParams) returns (Version) {}
+  rpc GetHostInfo(GetHostInfoParams) returns (HostInfo) {}
+  rpc ListHostmap(ListHostmapParams) returns (stream HostInfo) {}
+  rpc SetRemote(SetRemoteParams) returns (HostInfo) {}
+  rpc Ping(PingParams) returns (stream DebugResult) {}
+}
+
+  /* rpc PingHost(PingHostParams) returns (stream HostInfo) {} */
+  /* rpc DebugHostInfo(ListHostmapParams) returns (stream Log) {} */
+
+message GetVersionParams {}
+message ListHostmapParams {}
+
+message GetHostInfoParams {
+  string vpnIP = 1;
+}
+
+message SetRemoteParams {
+  string vpnIP = 1;
+  string udpAddr = 2;
+}
+
+message PingParams {
+  string vpnIP = 1;
+}
+
+message Version {
+  string version = 1;
+}
+
+message HostInfo {
+  string vpnIP = 1;
+  uint32 localIndex = 2;
+  uint32 remoteIndex = 3;
+  repeated string remoteAddrs = 4;
+  uint64 cachedPackets = 5;
+  cert.RawNebulaCertificate cert = 6;
+  uint64 messageCounter = 7;
+  string currentRemote = 8;
+}
+
+message DebugResult {
+  google.protobuf.Timestamp timestamp = 1;
+  string message = 2;
+}

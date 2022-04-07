@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/slackhq/nebula/cert"
+	"github.com/slackhq/nebula/config"
 )
-
-var trustedCAs *cert.NebulaCAPool
 
 type CertState struct {
 	certificate         *cert.NebulaCertificate
@@ -46,7 +46,7 @@ func NewCertState(certificate *cert.NebulaCertificate, privateKey []byte) (*Cert
 	return cs, nil
 }
 
-func NewCertStateFromConfig(c *Config) (*CertState, error) {
+func NewCertStateFromConfig(c *config.C) (*CertState, error) {
 	var pemPrivateKey []byte
 	var err error
 
@@ -119,24 +119,18 @@ func NewCertStateFromConfig(c *Config) (*CertState, error) {
 	return NewCertState(nebulaCert, rawKey)
 }
 
-func loadCAFromConfig(c *Config) (*cert.NebulaCAPool, error) {
+func loadCAFromConfig(l *logrus.Logger, c *config.C) (*cert.NebulaCAPool, error) {
 	var rawCA []byte
 	var err error
 
 	caPathOrPEM := c.GetString("pki.ca", "")
-	if caPathOrPEM == "" {
-		// Support backwards compat with the old x509
-		//TODO: remove after this is rolled out everywhere - NB 2018/02/23
-		caPathOrPEM = c.GetString("x509.ca", "")
-	}
-
 	if caPathOrPEM == "" {
 		return nil, errors.New("no pki.ca path or PEM data provided")
 	}
 
 	if strings.Contains(caPathOrPEM, "-----BEGIN") {
 		rawCA = []byte(caPathOrPEM)
-		caPathOrPEM = "<inline>"
+
 	} else {
 		rawCA, err = ioutil.ReadFile(caPathOrPEM)
 		if err != nil {
@@ -145,7 +139,20 @@ func loadCAFromConfig(c *Config) (*cert.NebulaCAPool, error) {
 	}
 
 	CAs, err := cert.NewCAPoolFromBytes(rawCA)
-	if err != nil {
+	if errors.Is(err, cert.ErrExpired) {
+		var expired int
+		for _, cert := range CAs.CAs {
+			if cert.Expired(time.Now()) {
+				expired++
+				l.WithField("cert", cert).Warn("expired certificate present in CA pool")
+			}
+		}
+
+		if expired >= len(CAs.CAs) {
+			return nil, errors.New("no valid CA certificates present")
+		}
+
+	} else if err != nil {
 		return nil, fmt.Errorf("error while adding CA certificate to CA trust store: %s", err)
 	}
 
@@ -154,7 +161,8 @@ func loadCAFromConfig(c *Config) (*cert.NebulaCAPool, error) {
 		CAs.BlocklistFingerprint(fp)
 	}
 
-	// Support deprecated config for at leaast one minor release to allow for migrations
+	// Support deprecated config for at least one minor release to allow for migrations
+	//TODO: remove in 2022 or later
 	for _, fp := range c.GetStringSlice("pki.blacklist", []string{}) {
 		l.WithField("fingerprint", fp).Infof("Blocklisting cert")
 		l.Warn("pki.blacklist is deprecated and will not be supported in a future release. Please migrate your config to use pki.blocklist")

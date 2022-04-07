@@ -7,7 +7,11 @@ import (
 	"net"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/sirupsen/logrus"
 	"github.com/slackhq/nebula/api"
+	"github.com/slackhq/nebula/header"
+	"github.com/slackhq/nebula/iputil"
+	"github.com/slackhq/nebula/udp"
 	"google.golang.org/grpc"
 )
 
@@ -28,7 +32,7 @@ func (n *NebulaAPI) GetHostInfo(ctx context.Context, p *api.GetHostInfoParams) (
 	if ip == nil {
 		return nil, errors.New("invalid vpnIP")
 	}
-	hostInfo := n.Control.GetHostInfoByVpnIP(ip2int(ip), false)
+	hostInfo := n.Control.GetHostInfoByVpnIp(iputil.Ip2VpnIp(ip), false)
 	if hostInfo == nil {
 		return &api.HostInfo{}, nil
 	}
@@ -42,8 +46,8 @@ func (n *NebulaAPI) SetRemote(ctx context.Context, p *api.SetRemoteParams) (*api
 	if ip == nil {
 		return nil, errors.New("invalid vpnIP")
 	}
-	udpAddr := NewUDPAddrFromString(p.UdpAddr)
-	hostInfo := n.Control.SetRemoteForTunnel(ip2int(ip), *udpAddr)
+	udpAddr := udp.NewAddrFromString(p.UdpAddr)
+	hostInfo := n.Control.SetRemoteForTunnel(iputil.Ip2VpnIp(ip), *udpAddr)
 
 	return apiHostInfo(hostInfo), nil
 }
@@ -67,19 +71,19 @@ func (n *NebulaAPI) Ping(p *api.PingParams, s api.NebulaControl_PingServer) erro
 		return fmt.Errorf("The provided vpn ip could not be parsed: %s", p.VpnIP)
 	}
 
-	vpnIp := ip2int(parsedIp)
+	vpnIp := iputil.Ip2VpnIp(parsedIp)
 	if vpnIp == 0 {
 		return fmt.Errorf("The provided vpn ip could not be parsed: %s", p.VpnIP)
 	}
 
 	c := make(chan *api.DebugResult, 16)
 
-	hostInfo, _ := ifce.hostMap.QueryVpnIP(uint32(vpnIp))
+	hostInfo, _ := ifce.hostMap.QueryVpnIp(vpnIp)
 	if hostInfo != nil {
 		hostInfo.debug = c
 		hostInfo.debugMsg("tunnel already exists")
 	} else {
-		hostInfo, _ = ifce.handshakeManager.pendingHostMap.QueryVpnIP(uint32(vpnIp))
+		hostInfo, _ = ifce.handshakeManager.pendingHostMap.QueryVpnIp(vpnIp)
 		if hostInfo != nil {
 			hostInfo.debug = c
 			hostInfo.debugMsg("tunnel already handshaking")
@@ -114,7 +118,7 @@ func (n *NebulaAPI) Ping(p *api.PingParams, s api.NebulaControl_PingServer) erro
 
 	done := s.Context().Done()
 
-	ifce.SendMessageToVpnIp(test, testRequest, vpnIp, []byte(""), make([]byte, 12, 12), make([]byte, mtu))
+	ifce.SendMessageToVpnIp(header.Test, header.TestRequest, vpnIp, []byte(""), make([]byte, 12, 12), make([]byte, mtu))
 	hi.debugMsg("test packet sent")
 
 	for {
@@ -148,7 +152,7 @@ func apiHostInfo(hostInfo *ControlHostInfo) *api.HostInfo {
 		remoteAddrs[i] = a.String()
 	}
 	return &api.HostInfo{
-		VpnIP:         hostInfo.VpnIP.String(),
+		VpnIP:         hostInfo.VpnIp.String(),
 		LocalIndex:    hostInfo.LocalIndex,
 		RemoteIndex:   hostInfo.RemoteIndex,
 		RemoteAddrs:   remoteAddrs,
@@ -157,7 +161,7 @@ func apiHostInfo(hostInfo *ControlHostInfo) *api.HostInfo {
 	}
 }
 
-func (n *NebulaAPI) Run() {
+func (n *NebulaAPI) Run(l *logrus.Logger) {
 	// lis, err := net.Listen("unix", "/tmp/nebula.sock")
 	lis, err := net.Listen("tcp", "localhost:3021")
 	if err != nil {
