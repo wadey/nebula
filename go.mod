@@ -30,11 +30,10 @@ require (
 	golang.org/x/sys v0.0.0-20220406163625-3f8b81556e12
 	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224
 	golang.zx2c4.com/wireguard/windows v0.5.1
+	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/yaml.v2 v2.4.0
 )
-
-require google.golang.org/grpc v1.45.0
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
