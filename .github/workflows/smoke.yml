@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - relay-smoke-test
   pull_request:
     paths:
       - '.github/workflows/smoke**'
