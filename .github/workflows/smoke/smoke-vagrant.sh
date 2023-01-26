@@ -10,7 +10,7 @@ cleanup() {
     then
         sudo docker kill lighthouse1 host2
     fi
-    vagrant destroy -f
+    echo vagrant destroy -f
 }
 
 trap cleanup EXIT
@@ -21,11 +21,11 @@ sudo docker run --name host2 --rm nebula:smoke -config host2.yml -test
 vagrant up
 vagrant ssh -c "cd /nebula && /nebula/$1-nebula -config host3.yml -test"
 
-sudo docker run --name lighthouse1 --device /dev/net/tun:/dev/net/tun --cap-add NET_ADMIN --rm nebula:smoke -config lighthouse1.yml &
+sudo docker run --name lighthouse1 --device /dev/net/tun:/dev/net/tun --cap-add NET_ADMIN --rm nebula:smoke -config lighthouse1.yml | tee logs/lighthouse1 | sed -u 's/^/  [lighthouse1]  /' &
 sleep 1
-sudo docker run --name host2 --device /dev/net/tun:/dev/net/tun --cap-add NET_ADMIN --rm nebula:smoke -config host2.yml &
+sudo docker run --name host2 --device /dev/net/tun:/dev/net/tun --cap-add NET_ADMIN --rm nebula:smoke -config host2.yml | tee logs/host2 | sed -u 's/^/  [host2]  /' &
 sleep 1
-vagrant ssh -c "cd /nebula && sudo sh -c 'echo \$\$ >/nebula/pid && exec /nebula/$1-nebula -config host3.yml'" &
+vagrant ssh --no-tty -c "cd /nebula && sudo sh -c 'echo \$\$ >/nebula/pid && exec /nebula/$1-nebula -config host3.yml'" | tee logs/host3 | sed -u 's/^/  [host3]  /' &
 sleep 15
 
 set +x
