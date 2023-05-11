@@ -151,8 +151,21 @@ func Main(c *config.C, configTest bool, buildVersion string, logger *logrus.Logg
 	port := c.GetInt("listen.port", 0)
 
 	if !configTest {
+		rawListenHost := c.GetString("listen.host", "0.0.0.0")
+		var listenHost *net.IPAddr
+		if rawListenHost == "[::]" {
+			// Old guidance was to provide the literal `[::]` in `listen.host` but that won't resolve.
+			listenHost = &net.IPAddr{IP: net.IPv6zero}
+
+		} else {
+			listenHost, err = net.ResolveIPAddr("ip", rawListenHost)
+			if err != nil {
+				return nil, util.NewContextualError("Failed to resolve listen.host", nil, err)
+			}
+		}
+
 		for i := 0; i < routines; i++ {
-			udpServer, err := udp.NewListener(l, c.GetString("listen.host", "0.0.0.0"), port, routines > 1, c.GetInt("listen.batch", 64))
+			udpServer, err := udp.NewListener(l, listenHost.IP, port, routines > 1, c.GetInt("listen.batch", 64))
 			if err != nil {
 				return nil, util.NewContextualError("Failed to open udp listener", m{"queue": i}, err)
 			}
@@ -202,7 +215,10 @@ func Main(c *config.C, configTest bool, buildVersion string, logger *logrus.Logg
 	hostMap := NewHostMap(l, "main", tunCidr, preferredRanges)
 	hostMap.metricsEnabled = c.GetBool("stats.message_metrics", false)
 
-	l.WithField("network", hostMap.vpnCIDR).WithField("preferredRanges", hostMap.preferredRanges).Info("Main HostMap created")
+	l.
+		WithField("network", hostMap.vpnCIDR.String()).
+		WithField("preferredRanges", hostMap.preferredRanges).
+		Info("Main HostMap created")
 
 	/*
 		config.SetDefault("promoter.interval", 10)
@@ -210,12 +226,7 @@ func Main(c *config.C, configTest bool, buildVersion string, logger *logrus.Logg
 	*/
 
 	punchy := NewPunchyFromConfig(l, c)
-	if punchy.GetPunch() && !configTest {
-		l.Info("UDP hole punching enabled")
-		go hostMap.Punchy(ctx, udpConns[0])
-	}
-
-	lightHouse, err := NewLightHouseFromConfig(l, c, tunCidr, udpConns[0], punchy)
+	lightHouse, err := NewLightHouseFromConfig(ctx, l, c, tunCidr, udpConns[0], punchy)
 	switch {
 	case errors.As(err, &util.ContextualError{}):
 		return nil, err
@@ -269,8 +280,8 @@ func Main(c *config.C, configTest bool, buildVersion string, logger *logrus.Logg
 		ServeDns:                serveDns,
 		HandshakeManager:        handshakeManager,
 		lightHouse:              lightHouse,
-		checkInterval:           checkInterval,
-		pendingDeletionInterval: pendingDeletionInterval,
+		checkInterval:           time.Second * time.Duration(checkInterval),
+		pendingDeletionInterval: time.Second * time.Duration(pendingDeletionInterval),
 		DropLocalBroadcast:      c.GetBool("tun.drop_local_broadcast", false),
 		DropMulticast:           c.GetBool("tun.drop_multicast", false),
 		routines:                routines,
@@ -279,6 +290,7 @@ func Main(c *config.C, configTest bool, buildVersion string, logger *logrus.Logg
 		caPool:                  caPool,
 		disconnectInvalid:       c.GetBool("pki.disconnect_invalid", false),
 		relayManager:            NewRelayManager(ctx, l, hostMap, c),
+		punchy:                  punchy,
 
 		ConntrackCacheTimeout: conntrackCacheTimeout,
 		l:                     l,

@@ -45,9 +45,9 @@ type Conn struct {
 	l *logrus.Logger
 }
 
-func NewListener(l *logrus.Logger, ip string, port int, _ bool, _ int) (*Conn, error) {
+func NewListener(l *logrus.Logger, ip net.IP, port int, _ bool, _ int) (*Conn, error) {
 	return &Conn{
-		Addr:      &Addr{net.ParseIP(ip), uint16(port)},
+		Addr:      &Addr{ip, uint16(port)},
 		RxPackets: make(chan *Packet, 10),
 		TxPackets: make(chan *Packet, 10),
 		l:         l,
@@ -62,11 +62,11 @@ func (u *Conn) Send(packet *Packet) {
 	if err := h.Parse(packet.Data); err != nil {
 		panic(err)
 	}
-	if u.l.Level >= logrus.InfoLevel {
+	if u.l.Level >= logrus.DebugLevel {
 		u.l.WithField("header", h).
 			WithField("udpAddr", fmt.Sprintf("%v:%v", packet.FromIp, packet.FromPort)).
 			WithField("dataLen", len(packet.Data)).
-			Info("UDP receiving injected packet")
+			Debug("UDP receiving injected packet")
 	}
 	u.RxPackets <- packet
 }
@@ -122,7 +122,7 @@ func (u *Conn) ListenOut(r EncReader, lhf LightHouseHandlerFunc, cache *firewall
 		}
 		ua.Port = p.FromPort
 		copy(ua.IP, p.FromIp.To16())
-		r(ua, nil, plaintext[:0], p.Data, h, fwPacket, lhf, nb, q, cache.Get(u.l))
+		r(ua, plaintext[:0], p.Data, h, fwPacket, lhf, nb, q, cache.Get(u.l))
 	}
 }
 

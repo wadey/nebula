@@ -36,6 +36,11 @@ Check the [releases](https://github.com/slackhq/nebula/releases/latest) page for
     $ sudo dnf install nebula
     ```
 
+- [macOS Homebrew](https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/nebula.rb)
+    ```
+    $ brew install nebula
+    ```
+
 #### Mobile
 
 - [iOS](https://apps.apple.com/us/app/mobile-nebula/id1509587936?itsct=apps_box&amp;itscg=30200)
@@ -112,6 +117,17 @@ To build nebula for a specific platform (ex, Windows):
 `make bin-windows`
 
 See the [Makefile](Makefile) for more details on build targets
+
+## Curve P256 and BoringCrypto
+
+The default curve used for cryptographic handshakes and signatures is Curve25519. This is the recommended setting for most users. If your deployment has certain compliance requirements, you have the option of creating your CA using `nebula-cert ca -curve P256` to use NIST Curve P256. The CA will then sign certificates using ECDSA P256, and any hosts using these certificates will use P256 for ECDH handshakes.
+
+In addition, Nebula can be built using the [BoringCrypto GOEXPERIMENT](https://github.com/golang/go/blob/go1.20/src/crypto/internal/boring/README.md) by running either of the following make targets:
+
+    make bin-boringcrypto
+    make release-boringcrypto
+
+This is not the recommended default deployment, but may be useful based on your compliance requirements.
 
 ## Credits
 

@@ -30,7 +30,7 @@ import (
 type m map[string]interface{}
 
 // newSimpleServer creates a nebula instance with many assumptions
-func newSimpleServer(caCrt *cert.NebulaCertificate, caKey []byte, name string, udpIp net.IP, overrides m) (*nebula.Control, net.IP, *net.UDPAddr) {
+func newSimpleServer(caCrt *cert.NebulaCertificate, caKey []byte, name string, udpIp net.IP, overrides m) (*nebula.Control, *net.IPNet, *net.UDPAddr, *config.C) {
 	l := NewTestLogger()
 
 	vpnIpNet := &net.IPNet{IP: make([]byte, len(udpIp)), Mask: net.IPMask{255, 255, 255, 0}}
@@ -77,6 +77,10 @@ func newSimpleServer(caCrt *cert.NebulaCertificate, caKey []byte, name string, u
 			"timestamp_format": fmt.Sprintf("%v 15:04:05.000000", name),
 			"level":            l.Level.String(),
 		},
+		"timers": m{
+			"pending_deletion_interval": 2,
+			"connection_alive_interval": 2,
+		},
 	}
 
 	if overrides != nil {
@@ -101,7 +105,7 @@ func newSimpleServer(caCrt *cert.NebulaCertificate, caKey []byte, name string, u
 		panic(err)
 	}
 
-	return control, vpnIpNet.IP, &udpAddr
+	return control, vpnIpNet, &udpAddr, c
 }
 
 // newTestCaCert will generate a CA cert
@@ -137,7 +141,7 @@ func newTestCaCert(before, after time.Time, ips, subnets []*net.IPNet, groups []
 		nc.Details.Groups = groups
 	}
 
-	err = nc.Sign(priv)
+	err = nc.Sign(cert.Curve_CURVE25519, priv)
 	if err != nil {
 		panic(err)
 	}
@@ -183,7 +187,7 @@ func newTestCert(ca *cert.NebulaCertificate, key []byte, name string, before, af
 		},
 	}
 
-	err = nc.Sign(key)
+	err = nc.Sign(ca.Details.Curve, key)
 	if err != nil {
 		panic(err)
 	}
@@ -231,12 +235,12 @@ func deadline(t *testing.T, seconds time.Duration) doneCb {
 func assertTunnel(t *testing.T, vpnIpA, vpnIpB net.IP, controlA, controlB *nebula.Control, r *router.R) {
 	// Send a packet from them to me
 	controlB.InjectTunUDPPacket(vpnIpA, 80, 90, []byte("Hi from B"))
-	bPacket := r.RouteUntilTxTun(controlB, controlA)
+	bPacket := r.RouteForAllUntilTxTun(controlA)
 	assertUdpPacket(t, []byte("Hi from B"), bPacket, vpnIpB, vpnIpA, 90, 80)
 
 	// And once more from me to them
 	controlA.InjectTunUDPPacket(vpnIpB, 80, 90, []byte("Hello from A"))
-	aPacket := r.RouteUntilTxTun(controlA, controlB)
+	aPacket := r.RouteForAllUntilTxTun(controlB)
 	assertUdpPacket(t, []byte("Hello from A"), aPacket, vpnIpA, vpnIpB, 90, 80)
 }
 

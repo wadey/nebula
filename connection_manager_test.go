@@ -10,6 +10,7 @@ import (
 
 	"github.com/flynn/noise"
 	"github.com/slackhq/nebula/cert"
+	"github.com/slackhq/nebula/config"
 	"github.com/slackhq/nebula/iputil"
 	"github.com/slackhq/nebula/test"
 	"github.com/slackhq/nebula/udp"
@@ -54,52 +55,62 @@ func Test_NewConnectionManagerTest(t *testing.T) {
 		hostMap:          hostMap,
 		inside:           &test.NoopTun{},
 		outside:          &udp.Conn{},
-		certState:        cs,
 		firewall:         &Firewall{},
 		lightHouse:       lh,
 		handshakeManager: NewHandshakeManager(l, vpncidr, preferredRanges, hostMap, lh, &udp.Conn{}, defaultHandshakeConfig),
 		l:                l,
 	}
-	now := time.Now()
+	ifce.certState.Store(cs)
 
 	// Create manager
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	nc := newConnectionManager(ctx, l, ifce, 5, 10)
+	punchy := NewPunchyFromConfig(l, config.NewC(l))
+	nc := newConnectionManager(ctx, l, ifce, 5, 10, punchy)
 	p := []byte("")
 	nb := make([]byte, 12, 12)
 	out := make([]byte, mtu)
-	nc.HandleMonitorTick(now, p, nb, out)
+
 	// Add an ip we have established a connection w/ to hostmap
-	hostinfo, _ := nc.hostMap.AddVpnIp(vpnIp, nil)
+	hostinfo := &HostInfo{
+		vpnIp:         vpnIp,
+		localIndexId:  1099,
+		remoteIndexId: 9901,
+	}
 	hostinfo.ConnectionState = &ConnectionState{
 		certState: cs,
 		H:         &noise.HandshakeState{},
 	}
+	nc.hostMap.unlockedAddHostInfo(hostinfo, ifce)
 
 	// We saw traffic out to vpnIp
-	nc.Out(vpnIp)
-	assert.NotContains(t, nc.pendingDeletion, vpnIp)
-	assert.Contains(t, nc.hostMap.Hosts, vpnIp)
-	// Move ahead 5s. Nothing should happen
-	next_tick := now.Add(5 * time.Second)
-	nc.HandleMonitorTick(next_tick, p, nb, out)
-	nc.HandleDeletionTick(next_tick)
-	// Move ahead 6s. We haven't heard back
-	next_tick = now.Add(6 * time.Second)
-	nc.HandleMonitorTick(next_tick, p, nb, out)
-	nc.HandleDeletionTick(next_tick)
-	// This host should now be up for deletion
-	assert.Contains(t, nc.pendingDeletion, vpnIp)
-	assert.Contains(t, nc.hostMap.Hosts, vpnIp)
-	// Move ahead some more
-	next_tick = now.Add(45 * time.Second)
-	nc.HandleMonitorTick(next_tick, p, nb, out)
-	nc.HandleDeletionTick(next_tick)
-	// The host should be evicted
-	assert.NotContains(t, nc.pendingDeletion, vpnIp)
-	assert.NotContains(t, nc.hostMap.Hosts, vpnIp)
+	nc.Out(hostinfo.localIndexId)
+	nc.In(hostinfo.localIndexId)
+	assert.NotContains(t, nc.pendingDeletion, hostinfo.localIndexId)
+	assert.Contains(t, nc.hostMap.Hosts, hostinfo.vpnIp)
+	assert.Contains(t, nc.hostMap.Indexes, hostinfo.localIndexId)
+	assert.Contains(t, nc.out, hostinfo.localIndexId)
 
+	// Do a traffic check tick, should not be pending deletion but should not have any in/out packets recorded
+	nc.doTrafficCheck(hostinfo.localIndexId, p, nb, out, time.Now())
+	assert.NotContains(t, nc.pendingDeletion, hostinfo.localIndexId)
+	assert.NotContains(t, nc.out, hostinfo.localIndexId)
+	assert.NotContains(t, nc.in, hostinfo.localIndexId)
+
+	// Do another traffic check tick, this host should be pending deletion now
+	nc.Out(hostinfo.localIndexId)
+	nc.doTrafficCheck(hostinfo.localIndexId, p, nb, out, time.Now())
+	assert.Contains(t, nc.pendingDeletion, hostinfo.localIndexId)
+	assert.NotContains(t, nc.out, hostinfo.localIndexId)
+	assert.NotContains(t, nc.in, hostinfo.localIndexId)
+	assert.Contains(t, nc.hostMap.Indexes, hostinfo.localIndexId)
+	assert.Contains(t, nc.hostMap.Hosts, hostinfo.vpnIp)
+
+	// Do a final traffic check tick, the host should now be removed
+	nc.doTrafficCheck(hostinfo.localIndexId, p, nb, out, time.Now())
+	assert.NotContains(t, nc.pendingDeletion, hostinfo.localIndexId)
+	assert.NotContains(t, nc.hostMap.Hosts, hostinfo.vpnIp)
+	assert.NotContains(t, nc.hostMap.Indexes, hostinfo.localIndexId)
 }
 
 func Test_NewConnectionManagerTest2(t *testing.T) {
@@ -123,54 +134,64 @@ func Test_NewConnectionManagerTest2(t *testing.T) {
 		hostMap:          hostMap,
 		inside:           &test.NoopTun{},
 		outside:          &udp.Conn{},
-		certState:        cs,
 		firewall:         &Firewall{},
 		lightHouse:       lh,
 		handshakeManager: NewHandshakeManager(l, vpncidr, preferredRanges, hostMap, lh, &udp.Conn{}, defaultHandshakeConfig),
 		l:                l,
 	}
-	now := time.Now()
+	ifce.certState.Store(cs)
 
 	// Create manager
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	nc := newConnectionManager(ctx, l, ifce, 5, 10)
+	punchy := NewPunchyFromConfig(l, config.NewC(l))
+	nc := newConnectionManager(ctx, l, ifce, 5, 10, punchy)
 	p := []byte("")
 	nb := make([]byte, 12, 12)
 	out := make([]byte, mtu)
-	nc.HandleMonitorTick(now, p, nb, out)
+
 	// Add an ip we have established a connection w/ to hostmap
-	hostinfo, _ := nc.hostMap.AddVpnIp(vpnIp, nil)
+	hostinfo := &HostInfo{
+		vpnIp:         vpnIp,
+		localIndexId:  1099,
+		remoteIndexId: 9901,
+	}
 	hostinfo.ConnectionState = &ConnectionState{
 		certState: cs,
 		H:         &noise.HandshakeState{},
 	}
+	nc.hostMap.unlockedAddHostInfo(hostinfo, ifce)
 
 	// We saw traffic out to vpnIp
-	nc.Out(vpnIp)
-	assert.NotContains(t, nc.pendingDeletion, vpnIp)
-	assert.Contains(t, nc.hostMap.Hosts, vpnIp)
-	// Move ahead 5s. Nothing should happen
-	next_tick := now.Add(5 * time.Second)
-	nc.HandleMonitorTick(next_tick, p, nb, out)
-	nc.HandleDeletionTick(next_tick)
-	// Move ahead 6s. We haven't heard back
-	next_tick = now.Add(6 * time.Second)
-	nc.HandleMonitorTick(next_tick, p, nb, out)
-	nc.HandleDeletionTick(next_tick)
-	// This host should now be up for deletion
-	assert.Contains(t, nc.pendingDeletion, vpnIp)
-	assert.Contains(t, nc.hostMap.Hosts, vpnIp)
-	// We heard back this time
-	nc.In(vpnIp)
-	// Move ahead some more
-	next_tick = now.Add(45 * time.Second)
-	nc.HandleMonitorTick(next_tick, p, nb, out)
-	nc.HandleDeletionTick(next_tick)
-	// The host should be evicted
-	assert.NotContains(t, nc.pendingDeletion, vpnIp)
-	assert.Contains(t, nc.hostMap.Hosts, vpnIp)
+	nc.Out(hostinfo.localIndexId)
+	nc.In(hostinfo.localIndexId)
+	assert.NotContains(t, nc.pendingDeletion, hostinfo.vpnIp)
+	assert.Contains(t, nc.hostMap.Hosts, hostinfo.vpnIp)
+	assert.Contains(t, nc.hostMap.Indexes, hostinfo.localIndexId)
 
+	// Do a traffic check tick, should not be pending deletion but should not have any in/out packets recorded
+	nc.doTrafficCheck(hostinfo.localIndexId, p, nb, out, time.Now())
+	assert.NotContains(t, nc.pendingDeletion, hostinfo.localIndexId)
+	assert.NotContains(t, nc.out, hostinfo.localIndexId)
+	assert.NotContains(t, nc.in, hostinfo.localIndexId)
+
+	// Do another traffic check tick, this host should be pending deletion now
+	nc.Out(hostinfo.localIndexId)
+	nc.doTrafficCheck(hostinfo.localIndexId, p, nb, out, time.Now())
+	assert.Contains(t, nc.pendingDeletion, hostinfo.localIndexId)
+	assert.NotContains(t, nc.out, hostinfo.localIndexId)
+	assert.NotContains(t, nc.in, hostinfo.localIndexId)
+	assert.Contains(t, nc.hostMap.Indexes, hostinfo.localIndexId)
+	assert.Contains(t, nc.hostMap.Hosts, hostinfo.vpnIp)
+
+	// We saw traffic, should no longer be pending deletion
+	nc.In(hostinfo.localIndexId)
+	nc.doTrafficCheck(hostinfo.localIndexId, p, nb, out, time.Now())
+	assert.NotContains(t, nc.pendingDeletion, hostinfo.localIndexId)
+	assert.NotContains(t, nc.out, hostinfo.localIndexId)
+	assert.NotContains(t, nc.in, hostinfo.localIndexId)
+	assert.Contains(t, nc.hostMap.Indexes, hostinfo.localIndexId)
+	assert.Contains(t, nc.hostMap.Hosts, hostinfo.vpnIp)
 }
 
 // Check if we can disconnect the peer.
@@ -199,7 +220,7 @@ func Test_NewConnectionManagerTest_DisconnectInvalid(t *testing.T) {
 			PublicKey: pubCA,
 		},
 	}
-	caCert.Sign(privCA)
+	caCert.Sign(cert.Curve_CURVE25519, privCA)
 	ncp := &cert.NebulaCAPool{
 		CAs: cert.NewCAPool().CAs,
 	}
@@ -218,7 +239,7 @@ func Test_NewConnectionManagerTest_DisconnectInvalid(t *testing.T) {
 			Issuer:    "ca",
 		},
 	}
-	peerCert.Sign(privCA)
+	peerCert.Sign(cert.Curve_CURVE25519, privCA)
 
 	cs := &CertState{
 		rawCertificate:      []byte{},
@@ -232,7 +253,6 @@ func Test_NewConnectionManagerTest_DisconnectInvalid(t *testing.T) {
 		hostMap:           hostMap,
 		inside:            &test.NoopTun{},
 		outside:           &udp.Conn{},
-		certState:         cs,
 		firewall:          &Firewall{},
 		lightHouse:        lh,
 		handshakeManager:  NewHandshakeManager(l, vpncidr, preferredRanges, hostMap, lh, &udp.Conn{}, defaultHandshakeConfig),
@@ -240,11 +260,13 @@ func Test_NewConnectionManagerTest_DisconnectInvalid(t *testing.T) {
 		disconnectInvalid: true,
 		caPool:            ncp,
 	}
+	ifce.certState.Store(cs)
 
 	// Create manager
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	nc := newConnectionManager(ctx, l, ifce, 5, 10)
+	punchy := NewPunchyFromConfig(l, config.NewC(l))
+	nc := newConnectionManager(ctx, l, ifce, 5, 10, punchy)
 	ifce.connectionManager = nc
 	hostinfo, _ := nc.hostMap.AddVpnIp(vpnIp, nil)
 	hostinfo.ConnectionState = &ConnectionState{
@@ -257,13 +279,13 @@ func Test_NewConnectionManagerTest_DisconnectInvalid(t *testing.T) {
 	// Check if to disconnect with invalid certificate.
 	// Should be alive.
 	nextTick := now.Add(45 * time.Second)
-	destroyed := nc.handleInvalidCertificate(nextTick, vpnIp, hostinfo)
-	assert.False(t, destroyed)
+	invalid := nc.isInvalidCertificate(nextTick, hostinfo)
+	assert.False(t, invalid)
 
 	// Move ahead 61s.
 	// Check if to disconnect with invalid certificate.
 	// Should be disconnected.
 	nextTick = now.Add(61 * time.Second)
-	destroyed = nc.handleInvalidCertificate(nextTick, vpnIp, hostinfo)
-	assert.True(t, destroyed)
+	invalid = nc.isInvalidCertificate(nextTick, hostinfo)
+	assert.True(t, invalid)
 }
