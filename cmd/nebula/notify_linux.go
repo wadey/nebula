@@ -25,7 +25,12 @@ func notifyReady(l *logrus.Logger) {
 		l.WithError(err).Error("failed to connect to systemd notification socket")
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			l.WithError(err).Error("failed to close systemd notification socket")
+		}
+	}()
 
 	err = conn.SetWriteDeadline(time.Now().Add(time.Second))
 	if err != nil {

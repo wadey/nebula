@@ -4,6 +4,7 @@
 package overlay
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -45,13 +46,12 @@ func (t *tun) Close() error {
 		if err != nil {
 			return err
 		}
-		defer syscall.Close(s)
 
 		ifreq := ifreqDestroy{Name: t.deviceBytes()}
 
 		err = ioctl(uintptr(s), syscall.SIOCIFDESTROY, uintptr(unsafe.Pointer(&ifreq)))
 
-		return err
+		return errors.Join(err, syscall.Close(s))
 	}
 	return nil
 }

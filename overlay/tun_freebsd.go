@@ -64,13 +64,12 @@ func (t *tun) Close() error {
 		if err != nil {
 			return err
 		}
-		defer syscall.Close(s)
 
 		ifreq := ifreqDestroy{Name: t.deviceBytes()}
 
 		// Destroy the interface
 		err = ioctl(uintptr(s), syscall.SIOCIFDESTROY, uintptr(unsafe.Pointer(&ifreq)))
-		return err
+		return errors.Join(err, syscall.Close(s))
 	}
 
 	return nil
@@ -126,7 +125,6 @@ func newTun(l *logrus.Logger, deviceName string, cidr *net.IPNet, defaultMTU int
 		if err != nil {
 			return nil, err
 		}
-		defer syscall.Close(s)
 
 		fd := uintptr(s)
 
@@ -141,7 +139,10 @@ func newTun(l *logrus.Logger, deviceName string, cidr *net.IPNet, defaultMTU int
 		}
 
 		// Set the device name
-		ioctl(fd, syscall.SIOCSIFNAME, uintptr(unsafe.Pointer(&ifrr)))
+		err = ioctl(fd, syscall.SIOCSIFNAME, uintptr(unsafe.Pointer(&ifrr)))
+		if err = errors.Join(err, syscall.Close(s)); err != nil {
+			return nil, err
+		}
 	}
 
 	routeTree, err := makeRouteTree(l, routes, false)

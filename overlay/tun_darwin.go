@@ -173,7 +173,7 @@ func (t *tun) Close() error {
 	return nil
 }
 
-func (t *tun) Activate() error {
+func (t *tun) Activate() (err error) {
 	devName := t.deviceBytes()
 
 	var addr, mask [4]byte
@@ -189,7 +189,9 @@ func (t *tun) Activate() error {
 	if err != nil {
 		return err
 	}
-	defer unix.Close(s)
+	defer func() {
+		err = errors.Join(err, unix.Close(s))
+	}()
 
 	fd := uintptr(s)
 

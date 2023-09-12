@@ -185,6 +185,9 @@ func (s *session) dispatchCommand(line string, w StringWriter) {
 }
 
 func (s *session) Close() {
-	s.c.Close()
+	err := s.c.Close()
+	if err != nil {
+		s.l.WithError(err).Error("Failed to close SSH session")
+	}
 	s.exitChan <- true
 }
