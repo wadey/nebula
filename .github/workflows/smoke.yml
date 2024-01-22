@@ -36,6 +36,13 @@ jobs:
       working-directory: ./.github/workflows/smoke
       run: ./smoke.sh
 
+    - name: run smoke ipv4
+      working-directory: ./.github/workflows/smoke
+      run: |
+        sysctl net.ipv6.conf.all.disable_ipv6=1
+        sysctl net.ipv6.conf.default.disable_ipv6=1
+        ./smoke.sh
+
     - name: setup relay docker image
       working-directory: ./.github/workflows/smoke
       run: ./build-relay.sh
