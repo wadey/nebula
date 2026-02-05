@@ -6,9 +6,14 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"fmt"
+	"math/big"
 	"net/netip"
 	"time"
+
+	"golang.org/x/crypto/cryptobyte"
+	"golang.org/x/crypto/cryptobyte/asn1"
 )
 
 // TBSCertificate represents a certificate intended to be signed.
@@ -70,6 +75,38 @@ func (t *TBSCertificate) Sign(signer Certificate, curve Curve, key []byte) (Cert
 	}
 }
 
+func checkLowS(sig []byte) error {
+	_, s, err := parseSignature(sig)
+	if err != nil {
+		return err
+	}
+
+	bigS := new(big.Int).SetBytes(s)
+
+	// Check if S > (N/2)
+	bigN2 := new(big.Int).Set(elliptic.P256().Params().N)
+	bigN2.Div(bigN2, big.NewInt(2))
+	if bigS.Cmp(bigN2) > 0 {
+		return fmt.Errorf("not low-s. s=%x n=%x n/2=%x", bigS, elliptic.P256().Params().N, bigN2)
+	}
+
+	return nil
+
+}
+
+func parseSignature(sig []byte) (r, s []byte, err error) {
+	var inner cryptobyte.String
+	input := cryptobyte.String(sig)
+	if !input.ReadASN1(&inner, asn1.SEQUENCE) ||
+		!input.Empty() ||
+		!inner.ReadASN1Integer(&r) ||
+		!inner.ReadASN1Integer(&s) ||
+		!inner.Empty() {
+		return nil, nil, errors.New("invalid ASN.1")
+	}
+	return r, s, nil
+}
+
 // SignWith does the same thing as sign, but uses the function in `sp` to calculate the signature.
 // You should only use SignWith if you do not have direct access to your private key.
 func (t *TBSCertificate) SignWith(signer Certificate, curve Curve, sp SignerLambda) (Certificate, error) {
@@ -124,6 +161,14 @@ func (t *TBSCertificate) SignWith(signer Certificate, curve Curve, sp SignerLamb
 	sig, err := sp(certBytes)
 	if err != nil {
 		return nil, err
+	}
+
+	if curve == Curve_P256 {
+		// TODO convert to low-s instead of just erroring
+		err := checkLowS(sig)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = c.setSignature(sig)

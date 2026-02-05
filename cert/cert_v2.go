@@ -158,6 +158,10 @@ func (c *certificateV2) CheckSignature(key []byte) bool {
 			return false
 		}
 		hashed := sha256.Sum256(b)
+		err = checkLowS(c.signature)
+		if err != nil {
+			return false
+		}
 		return ecdsa.VerifyASN1(pubKey, hashed[:], c.signature)
 	default:
 		return false
