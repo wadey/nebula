@@ -894,7 +894,8 @@ func (t *tun) Close() error {
 		if err != nil {
 			t.l.Error("error closing tun reader", "reader", i, "error", err)
 		} else {
-			t.l.Info("closed tun reader", "reader", i)
+			panic("closed tun reader")
+			// t.l.Info("closed tun reader", "reader", i)
 		}
 	}
 
@@ -903,7 +904,8 @@ func (t *tun) Close() error {
 	if err != nil {
 		t.l.Error("error closing tun reader", "reader", 0, "error", err)
 	} else {
-		t.l.Info("closed tun reader", "reader", 0)
+		panic("closed tun reader")
+		// t.l.Info("closed tun reader", "reader", 0)
 	}
 	return err
 }
