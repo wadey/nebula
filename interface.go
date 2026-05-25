@@ -260,6 +260,7 @@ func (f *Interface) activate() error {
 
 	f.wg.Add(1) // for us to wait on Close() to return
 	if err = f.inside.Activate(); err != nil {
+		f.l.Error("Activate error", "error", err)
 		f.wg.Done()
 		f.inside.Close()
 		return err
